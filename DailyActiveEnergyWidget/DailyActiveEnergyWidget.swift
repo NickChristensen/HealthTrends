@@ -122,9 +122,9 @@ struct EnergyWidgetProvider: TimelineProvider {
             entries.append(.placeholder)
         }
 
-        // Generate entries for the next 4 hours (every 30 minutes)
+        // Generate entries for the next 4 hours (every 15 minutes)
         // Each entry will re-read from shared container when its time comes
-        for minuteOffset in stride(from: 30, through: 240, by: 30) {
+        for minuteOffset in stride(from: 15, through: 240, by: 15) {
             if let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate),
                let entry = loadCurrentEntry(forDate: entryDate) {
                 entries.append(entry)
