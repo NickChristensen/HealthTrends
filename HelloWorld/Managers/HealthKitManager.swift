@@ -141,18 +141,8 @@ final class HealthKitManager: ObservableObject {
         self.projectedTotal = average.total
         self.averageHourlyData = average.hourlyData
 
-        // Calculate average at current hour
-        let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: Date())
-
-        // Find the value in averageHourlyData for the current hour
-        if let currentHourData = average.hourlyData.first(where: {
-            calendar.component(.hour, from: $0.hour) == currentHour
-        }) {
-            self.averageAtCurrentHour = currentHourData.calories
-        } else {
-            self.averageAtCurrentHour = 0
-        }
+        // Calculate interpolated average at current minute
+        self.averageAtCurrentHour = average.hourlyData.interpolatedValue(at: Date()) ?? 0
 
         // Write data to shared container for widget access
         try? SharedEnergyDataManager.shared.writeEnergyData(
