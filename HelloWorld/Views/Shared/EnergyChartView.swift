@@ -35,8 +35,15 @@ private func calculateLabelCollisions(chartWidth: CGFloat, now: Date) -> (hidesS
     let dayDuration = TimeInterval(24 * 60 * 60)
     let nowPosition = chartWidth * (nowOffset / dayDuration)
 
-    let nowLabelWidth: CGFloat = 50  // "6:10 AM" with minutes
-    let startEndLabelWidth: CGFloat = 35  // "12 AM" without minutes
+    // Measure actual text widths for accurate collision detection
+    let nowFormatter = Date.FormatStyle().hour().minute()
+    let nowLabelText = now.formatted(nowFormatter)
+    let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
+
+    let hourFormatter = Date.FormatStyle().hour()
+    let startLabelText = startOfDay.formatted(hourFormatter)
+    let startEndLabelWidth = measureTextWidth(startLabelText, textStyle: .caption1)
+
     let minSeparation: CGFloat = 4
 
     let nowLeft = nowPosition - nowLabelWidth / 2
@@ -83,7 +90,11 @@ private struct ChartXAxisLabels: View {
                     let nowOffset = now.timeIntervalSince(startOfDay)
                     let dayDuration = TimeInterval(24 * 60 * 60)
                     let nowPosition = chartWidth * (nowOffset / dayDuration)
-                    let nowLabelWidth: CGFloat = 50
+
+                    // Measure actual text width for accurate positioning
+                    let nowFormatter = Date.FormatStyle().hour().minute()
+                    let nowLabelText = now.formatted(nowFormatter)
+                    let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
 
                     // Check if centering would put label out of bounds
                     let centeredLeft = nowPosition - nowLabelWidth / 2
@@ -102,7 +113,11 @@ private struct ChartXAxisLabels: View {
                     let nowOffset = now.timeIntervalSince(startOfDay)
                     let dayDuration = TimeInterval(24 * 60 * 60)
                     let nowPosition = chartWidth * (nowOffset / dayDuration)
-                    let nowLabelWidth: CGFloat = 50
+
+                    // Measure actual text width for accurate positioning
+                    let nowFormatter = Date.FormatStyle().hour().minute()
+                    let nowLabelText = now.formatted(nowFormatter)
+                    let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
 
                     // Check if centering would put label out of bounds
                     let centeredLeft = nowPosition - nowLabelWidth / 2

@@ -57,6 +57,7 @@
 			membershipExceptions = (
 				Models/HourlyEnergyData.swift,
 				Models/SharedEnergyData.swift,
+				Utilities/TextMeasurement.swift,
 				Views/Shared/EnergyChartView.swift,
 				Views/Shared/EnergyTrendView.swift,
 				Views/Shared/HeaderStatistic.swift,
