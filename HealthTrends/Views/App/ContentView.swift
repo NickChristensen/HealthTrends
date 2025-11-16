@@ -7,16 +7,19 @@
 
 import SwiftUI
 import Combine
+import WidgetKit
 
 struct ContentView: View {
     @StateObject private var healthKitManager = HealthKitManager()
     @State private var authorizationRequested = false
+    @State private var lastRefreshMinute: Int = Calendar.current.component(.minute, from: Date())
+    @Environment(\.scenePhase) private var scenePhase
     #if targetEnvironment(simulator)
     @State private var showingDevTools = false
     #endif
 
-    // Timer that fires every minute to refresh data
-    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    // Timer that checks every second for minute boundary changes
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -32,6 +35,7 @@ struct ContentView: View {
                             moveGoal: healthKitManager.moveGoal,
                             projectedTotal: healthKitManager.projectedTotal
                         )
+                        .id(healthKitManager.lastRefreshTime)
                     }
 
                     // Large Widget Preview
@@ -44,6 +48,7 @@ struct ContentView: View {
                             moveGoal: healthKitManager.moveGoal,
                             projectedTotal: healthKitManager.projectedTotal
                         )
+                        .id(healthKitManager.lastRefreshTime)
                     }
                 } else if authorizationRequested {
                     Text("⚠️ Waiting for authorization...")
@@ -73,7 +78,12 @@ struct ContentView: View {
         }
         #endif
         .onReceive(timer) { _ in
-            // Refresh data every minute while app is active
+            // Only refresh when we cross a minute boundary
+            let currentMinute = Calendar.current.component(.minute, from: Date())
+            guard currentMinute != lastRefreshMinute else { return }
+            lastRefreshMinute = currentMinute
+
+            // Refresh data at the start of each new minute
             Task {
                 guard healthKitManager.isAuthorized else { return }
                 try? await healthKitManager.fetchEnergyData()
@@ -83,6 +93,10 @@ struct ContentView: View {
                 } catch {
                     print("Failed to fetch move goal (using cached): \(error)")
                 }
+
+                // Reload widgets after updating data
+                // (doesn't count against budget when app is in foreground)
+                WidgetCenter.shared.reloadAllTimelines()
             }
         }
         .task {
@@ -96,8 +110,29 @@ struct ContentView: View {
                 // Fetch data after authorization
                 try await healthKitManager.fetchEnergyData()
                 try await healthKitManager.fetchMoveGoal()
+
+                // Reload widgets with initial data
+                WidgetCenter.shared.reloadAllTimelines()
             } catch {
                 print("HealthKit error: \(error)")
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // Refresh data when app comes to foreground
+            if newPhase == .active && healthKitManager.isAuthorized {
+                Task {
+                    try? await healthKitManager.fetchEnergyData()
+
+                    do {
+                        try await healthKitManager.fetchMoveGoal()
+                    } catch {
+                        print("Failed to fetch move goal (using cached): \(error)")
+                    }
+
+                    // Reload widgets when app is foregrounded
+                    // (doesn't count against budget when app is in foreground)
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
             }
         }
     }

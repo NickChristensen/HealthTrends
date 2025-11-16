@@ -14,6 +14,7 @@ final class HealthKitManager: ObservableObject {
     @Published var moveGoal: Double = 0  // Daily Move goal from Fitness app
     @Published var todayHourlyData: [HourlyEnergyData] = []
     @Published var averageHourlyData: [HourlyEnergyData] = []
+    @Published var lastRefreshTime: Date = Date()  // Forces UI refresh even when data unchanged
 
     init() {
         // Load cached move goal on initialization
@@ -161,6 +162,9 @@ final class HealthKitManager: ObservableObject {
 
         // Calculate interpolated average at current minute
         self.averageAtCurrentHour = average.hourlyData.interpolatedValue(at: Date()) ?? 0
+
+        // Update refresh timestamp to force UI redraw (updates NOW label even if data unchanged)
+        self.lastRefreshTime = Date()
 
         // Write data to shared container for widget access
         try? SharedEnergyDataManager.shared.writeEnergyData(
