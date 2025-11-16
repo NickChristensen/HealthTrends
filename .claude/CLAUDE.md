@@ -2,24 +2,49 @@
 
 ## Workflow Rules
 
-We track work in Beads instead of Markdown. Check the `beads://quickstart` resource to learn the workflow.
+### Issue Tracking (Hybrid GitHub + Beads)
 
-### Work completion
-- **Don't be overeager to close tasks or commit changes**
-  - The user will tell you when you are feature-complete, so don't assume that an issue should be closed or work should be staged/commited.
+**GitHub Issues** (Product/Engineering Manager's tool):
+- User-facing work: bugs, features, major improvements
+- Single source of truth for "what needs to be done"
+- User creates and manages these as the PM/EM
+- View issues: `gh issue list`
+- View specific issue: `gh issue view <number>`
+
+**Beads** (Engineer's internal tool):
+- My private task breakdown and dependency tracking
+- I create beads issues linked to GitHub via `external_ref: "GH-123"`
+- I manage my own workflow without user intervention
+- All beads commands available without approval
+- Beads issues can exist independently or be linked to GitHub issues
+
+### Starting Work on a GitHub Issue
+
+**IMPORTANT:** Always create a branch before starting work:
+
+1. **Get the GitHub issue number** (e.g., #42)
+2. **Create branch** named: `{issue-number}-short-description`
+   - Example: `git checkout -b 42-fix-widget-refresh`
+   - Example: `git checkout -b 42-dark-mode-colors`
+3. **Work on the branch**, commit changes as needed
+4. **When done**, use `/merge` command which will:
+   - Merge to main
+   - Include `fixes #42` in commit message to auto-close the issue
+
+### Work Completion
+
+- **GitHub issue closes when:** Commit with `fixes #123` is pushed to main
+- **Beads issues:** I manage independently (open, close, track sub-tasks)
+- **Don't be overeager:** User will tell you when work is feature-complete
 
 ### Git Commits
-- **Always update beads task status before every git commit**
-  - Close completed issues using the `mcp__plugin_beads_beads__close` tool
-  - Update in-progress work using the `mcp__plugin_beads_beads__update` tool with `status: "in_progress"`
-  - This ensures issues.jsonl stays in sync with code changes
-- **Always include .beads/issues.jsonl in commits**
-  - Add it together with code changes: `git add <files> .beads/issues.jsonl`
-  - This prevents pre-push hook errors requiring a separate commit
 
-### Issue Tracking
-- **When you create an issue, output the new issue _verbatim_ to me, not a summary. Output as markdown, not json.**
-- **When you update an issue, use your diff tool to show the issue with diffs highlighted**
+- **When closing GitHub issues via commit:**
+  - Include `fixes #123` in commit message to auto-close
+  - Close corresponding beads issue if it exists
+  - Update .beads/issues.jsonl if beads state changed
+- **Always include .beads/issues.jsonl in commits if it changed**
+  - Add it together with code changes: `git add <files> .beads/issues.jsonl`
 
 ### Documentation
 - **apple-docs MCP server is available** for Swift, SwiftUI, Swift Charts, and other Apple framework documentation
