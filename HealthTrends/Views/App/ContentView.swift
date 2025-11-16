@@ -35,7 +35,7 @@ struct ContentView: View {
                             moveGoal: healthKitManager.moveGoal,
                             projectedTotal: healthKitManager.projectedTotal
                         )
-                        .id(healthKitManager.lastRefreshTime)
+                        .id(healthKitManager.refreshCount)
                     }
 
                     // Large Widget Preview
@@ -48,7 +48,7 @@ struct ContentView: View {
                             moveGoal: healthKitManager.moveGoal,
                             projectedTotal: healthKitManager.projectedTotal
                         )
-                        .id(healthKitManager.lastRefreshTime)
+                        .id(healthKitManager.refreshCount)
                     }
                 } else if authorizationRequested {
                     Text("⚠️ Waiting for authorization...")
