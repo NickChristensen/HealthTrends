@@ -77,7 +77,12 @@ struct ContentView: View {
             Task {
                 guard healthKitManager.isAuthorized else { return }
                 try? await healthKitManager.fetchEnergyData()
-                try? await healthKitManager.fetchMoveGoal()
+
+                do {
+                    try await healthKitManager.fetchMoveGoal()
+                } catch {
+                    print("Failed to fetch move goal (using cached): \(error)")
+                }
             }
         }
         .task {

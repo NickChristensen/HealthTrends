@@ -5,6 +5,7 @@ import Combine
 @MainActor
 final class HealthKitManager: ObservableObject {
     private let healthStore = HKHealthStore()
+    private let moveGoalCacheKey = "cachedMoveGoal"
 
     @Published var isAuthorized = false
     @Published var todayTotal: Double = 0
@@ -14,9 +15,26 @@ final class HealthKitManager: ObservableObject {
     @Published var todayHourlyData: [HourlyEnergyData] = []
     @Published var averageHourlyData: [HourlyEnergyData] = []
 
+    init() {
+        // Load cached move goal on initialization
+        self.moveGoal = loadCachedMoveGoal()
+    }
+
     // Check if HealthKit is available on this device
     var isHealthKitAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
+    }
+
+    // MARK: - Move Goal Caching
+
+    /// Load cached move goal from UserDefaults
+    private func loadCachedMoveGoal() -> Double {
+        UserDefaults.standard.double(forKey: moveGoalCacheKey)
+    }
+
+    /// Save move goal to UserDefaults
+    private func cacheMoveGoal(_ goal: Double) {
+        UserDefaults.standard.set(goal, forKey: moveGoalCacheKey)
     }
 
     // Request authorization to read and write Active Energy data
@@ -163,7 +181,9 @@ final class HealthKitManager: ObservableObject {
 
         #if targetEnvironment(simulator)
         // Simulator doesn't have Fitness app, use mock goal for development
-        self.moveGoal = 800
+        let simulatorGoal = 800.0
+        self.moveGoal = simulatorGoal
+        cacheMoveGoal(simulatorGoal)
         #else
         let calendar = Calendar.current
         let now = Date()
@@ -188,10 +208,14 @@ final class HealthKitManager: ObservableObject {
         // Extract the active energy burned goal
         if let summary = activitySummary {
             let goalInKilocalories = summary.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
-            self.moveGoal = goalInKilocalories
-        } else {
-            self.moveGoal = 0
+            // Only update if we got a valid goal
+            if goalInKilocalories > 0 {
+                self.moveGoal = goalInKilocalories
+                cacheMoveGoal(goalInKilocalories)
+            }
+            // If goal is 0 or invalid, keep cached value (don't overwrite)
         }
+        // If no summary available, keep cached value (don't overwrite with 0)
         #endif
     }
 
