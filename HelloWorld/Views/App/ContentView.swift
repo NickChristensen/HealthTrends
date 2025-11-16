@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ContentView: View {
     @StateObject private var healthKitManager = HealthKitManager()
@@ -13,6 +14,9 @@ struct ContentView: View {
     #if targetEnvironment(simulator)
     @State private var showingDevTools = false
     #endif
+
+    // Timer that fires every minute to refresh data
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -68,6 +72,14 @@ struct ContentView: View {
             .padding()
         }
         #endif
+        .onReceive(timer) { _ in
+            // Refresh data every minute while app is active
+            Task {
+                guard healthKitManager.isAuthorized else { return }
+                try? await healthKitManager.fetchEnergyData()
+                try? await healthKitManager.fetchMoveGoal()
+            }
+        }
         .task {
             // Request HealthKit authorization when view appears
             guard !authorizationRequested else { return }
