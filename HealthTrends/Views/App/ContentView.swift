@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  HelloWorld
+//  HealthTrends
 //
 //  Created by Nick Christensen on 2025-10-04.
 //

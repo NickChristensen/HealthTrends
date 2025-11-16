@@ -1,6 +1,6 @@
 //
 //  TextMeasurement.swift
-//  HelloWorld
+//  HealthTrends
 //
 //  Created by Claude on 2025-11-15.
 //

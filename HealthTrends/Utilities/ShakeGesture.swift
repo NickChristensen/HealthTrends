@@ -1,6 +1,6 @@
 //
 //  ShakeGesture.swift
-//  HelloWorld
+//  HealthTrends
 //
 //  Created by Nick Christensen on 2025-11-09.
 //
