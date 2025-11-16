@@ -110,29 +110,16 @@ struct EnergyWidgetProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyWidgetEntry>) -> Void) {
-        // Generate timeline entries for the next few hours
         let currentDate = Date()
-        var entries: [EnergyWidgetEntry] = []
 
         // Load current data from shared container
-        if let currentEntry = loadCurrentEntry() {
-            entries.append(currentEntry)
-        } else {
-            // Fallback to placeholder if no data available
-            entries.append(.placeholder)
-        }
+        let entry = loadCurrentEntry(forDate: currentDate) ?? .placeholder
 
-        // Generate entries for the next 4 hours (every 15 minutes)
-        // Each entry will re-read from shared container when its time comes
-        for minuteOffset in stride(from: 15, through: 240, by: 15) {
-            if let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate),
-               let entry = loadCurrentEntry(forDate: entryDate) {
-                entries.append(entry)
-            }
-        }
+        // Schedule next refresh in 15 minutes
+        // WidgetKit will re-run getTimeline() at that time to fetch fresh data
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
 
-        // Reload timeline when entries run out
-        let timeline = Timeline(entries: entries, policy: .atEnd)
         completion(timeline)
     }
 
