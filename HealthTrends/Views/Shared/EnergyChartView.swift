@@ -189,55 +189,75 @@ struct EnergyChartView: View {
         )
     }
 
+    // MARK: - Computed Data Properties
+
+    /// Cleaned average data (removes stale NOW points from cached data)
+    /// Filters out interpolated points that may have been cached by widgets
+    private var cleanedAverageData: [HourlyEnergyData] {
+        averageHourlyData.filter { data in
+            let minute = calendar.component(.minute, from: data.hour)
+            return minute == 0
+        }
+    }
+
     /// Calculate interpolated average value at current time
-    private var interpolatedAverageAtNow: (hour: Date, calories: Double)? {
+    private var interpolatedAverageAtNow: HourlyEnergyData? {
         guard let interpolatedCalories = averageHourlyData.interpolatedValue(at: now) else {
             return nil
         }
-        return (now, interpolatedCalories)
+        return HourlyEnergyData(hour: now, calories: interpolatedCalories)
+    }
+
+    /// Average data from start of day up to NOW (includes interpolated NOW point)
+    private var averageDataBeforeNow: [HourlyEnergyData] {
+        var data = cleanedAverageData.filter { $0.hour <= startOfCurrentHour }
+        if let interpolated = interpolatedAverageAtNow {
+            data.append(interpolated)
+        }
+        return data
+    }
+
+    /// Average data from NOW to end of day (includes interpolated NOW point)
+    private var averageDataAfterNow: [HourlyEnergyData] {
+        var data: [HourlyEnergyData] = []
+
+        // Start with interpolated NOW point
+        if let interpolated = interpolatedAverageAtNow {
+            data.append(interpolated)
+        }
+
+        // Add all future hours
+        let nextHourStart = calendar.date(byAdding: .hour, value: 1, to: startOfCurrentHour)!
+        data.append(contentsOf: cleanedAverageData.filter { $0.hour >= nextHourStart })
+
+        return data
     }
 
     @ChartContentBuilder
     private var averageLines: some ChartContent {
-        let interpolated = interpolatedAverageAtNow
+        let darkGray = Color(.systemGray4)
+        let lightGray = Color(.systemGray6)
 
-        // Average data - up to current hour (darker gray)
-        ForEach(averageHourlyData.filter { $0.hour < startOfCurrentHour }) { data in
-            LineMark(x: .value("Hour", data.hour), y: .value("Calories", data.calories), series: .value("Series", "AverageUpToNow"))
-                .foregroundStyle(Color(.systemGray4))
-                .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+        // BEFORE NOW: darker gray line (past data → NOW)
+        ForEach(averageDataBeforeNow) { data in
+            LineMark(
+                x: .value("Hour", data.hour),
+                y: .value("Calories", data.calories),
+                series: .value("Series", "AverageUpToNow")
+            )
+            .foregroundStyle(darkGray)
+            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
         }
 
-        // Current hour start to NOW (interpolated)
-        if let interpolated = interpolated,
-           let currentHourData = averageHourlyData.first(where: { $0.hour == startOfCurrentHour }) {
-            LineMark(x: .value("Hour", currentHourData.hour), y: .value("Calories", currentHourData.calories), series: .value("Series", "AverageUpToNow"))
-                .foregroundStyle(Color(.systemGray4))
-                .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-            LineMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories), series: .value("Series", "AverageUpToNow"))
-                .foregroundStyle(Color(.systemGray4))
-                .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-        }
-
-        // NOW (interpolated) to rest of day (lighter gray)
-        if let interpolated = interpolated {
-            // Add interpolated point and explicitly connect to next hour to form first segment
-            let nextHourStart = calendar.date(byAdding: .hour, value: 1, to: startOfCurrentHour)!
-            if let nextHourData = averageHourlyData.first(where: { $0.hour == nextHourStart }) {
-                LineMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories), series: .value("Series", "AverageRestOfDay"))
-                    .foregroundStyle(Color(.systemGray6))
-                    .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                LineMark(x: .value("Hour", nextHourData.hour), y: .value("Calories", nextHourData.calories), series: .value("Series", "AverageRestOfDay"))
-                    .foregroundStyle(Color(.systemGray6))
-                    .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-            }
-        }
-        // Continue with remaining hours (skip next hour since we already added it above)
-        let nextHourStart = calendar.date(byAdding: .hour, value: 1, to: startOfCurrentHour)!
-        ForEach(averageHourlyData.filter { $0.hour > nextHourStart }) { data in
-            LineMark(x: .value("Hour", data.hour), y: .value("Calories", data.calories), series: .value("Series", "AverageRestOfDay"))
-                .foregroundStyle(Color(.systemGray6))
-                .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+        // AFTER NOW: lighter gray line (NOW → future data)
+        ForEach(averageDataAfterNow) { data in
+            LineMark(
+                x: .value("Hour", data.hour),
+                y: .value("Calories", data.calories),
+                series: .value("Series", "AverageRestOfDay")
+            )
+            .foregroundStyle(lightGray)
+            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
         }
     }
 
@@ -255,8 +275,8 @@ struct EnergyChartView: View {
     private var averagePoint: some ChartContent {
         // Show average point at NOW (interpolated value)
         if let interpolated = interpolatedAverageAtNow {
-            PointMark(x: .value("Hour", now), y: .value("Calories", interpolated.calories)).foregroundStyle(.background).symbolSize(256)
-            PointMark(x: .value("Hour", now), y: .value("Calories", interpolated.calories)).foregroundStyle(Color(.systemGray4)).symbolSize(100)
+            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(.background).symbolSize(256)
+            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(Color(.systemGray4)).symbolSize(100)
         }
     }
 
