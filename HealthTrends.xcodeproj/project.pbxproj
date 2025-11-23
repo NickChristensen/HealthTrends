@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0149D0882ED37CEC001DCAE6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0149D0872ED37CEC001DCAE6 /* AppIcon.icon */; };
+		0149D0892ED37CEC001DCAE6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0149D0872ED37CEC001DCAE6 /* AppIcon.icon */; };
 		01CFC1E32EC7AB8F003DC2E6 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 01CFC1E22EC7AB8F003DC2E6 /* WidgetKit.framework */; };
 		01CFC1E52EC7AB8F003DC2E6 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 01CFC1E42EC7AB8F003DC2E6 /* SwiftUI.framework */; };
 		01CFC1F02EC7AB90003DC2E6 /* DailyActiveEnergyWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01CFC1E02EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -37,6 +39,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0149D0872ED37CEC001DCAE6 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		0176C6252E91B08F003EFE68 /* HealthTrends.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HealthTrends.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01CFC1E02EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyActiveEnergyWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		01CFC1E22EC7AB8F003DC2E6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -113,6 +116,7 @@
 				01CFC1E62EC7AB8F003DC2E6 /* DailyActiveEnergyWidget */,
 				01CFC1E12EC7AB8F003DC2E6 /* Frameworks */,
 				0176C6262E91B08F003EFE68 /* Products */,
+				0149D0872ED37CEC001DCAE6 /* AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -226,6 +230,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0149D0892ED37CEC001DCAE6 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -233,6 +238,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0149D0882ED37CEC001DCAE6 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
