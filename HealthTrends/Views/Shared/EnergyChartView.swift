@@ -227,7 +227,9 @@ struct EnergyChartView: View {
         }
 
         // Add all future hours
-        let nextHourStart = calendar.date(byAdding: .hour, value: 1, to: startOfCurrentHour)!
+        guard let nextHourStart = calendar.date(byAdding: .hour, value: 1, to: startOfCurrentHour) else {
+            return data  // Shouldn't happen, but gracefully return partial data
+        }
         data.append(contentsOf: cleanedAverageData.filter { $0.hour >= nextHourStart })
 
         return data
