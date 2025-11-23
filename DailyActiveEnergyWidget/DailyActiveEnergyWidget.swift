@@ -7,6 +7,8 @@
 
 import WidgetKit
 import SwiftUI
+import HealthKit
+import HealthTrendsShared
 
 // MARK: - Timeline Entry
 
@@ -101,30 +103,111 @@ struct EnergyWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (EnergyWidgetEntry) -> Void) {
-        // For widget gallery - return quickly with real data if available, otherwise placeholder
-        if let entry = loadCurrentEntry() {
-            completion(entry)
-        } else {
-            completion(.placeholder)
-        }
+        // For widget gallery - return quickly with cached data
+        let entry = loadCachedEntry()
+        completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyWidgetEntry>) -> Void) {
         let currentDate = Date()
 
-        // Load current data from shared container
-        let entry = loadCurrentEntry(forDate: currentDate) ?? .placeholder
+        // Use hybrid approach: query HealthKit for today, use cached average data
+        Task {
+            let entry = await loadFreshEntry(forDate: currentDate)
 
-        // Schedule next refresh in 15 minutes
-        // WidgetKit will re-run getTimeline() at that time to fetch fresh data
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+            // Schedule next refresh in 15 minutes
+            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
+            let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
 
-        completion(timeline)
+            completion(timeline)
+        }
     }
 
-    /// Load current energy data from shared container
-    private func loadCurrentEntry(forDate date: Date = Date()) -> EnergyWidgetEntry? {
+    /// Load fresh entry using hybrid approach: query HealthKit for today, use cached average
+    private func loadFreshEntry(forDate date: Date = Date()) async -> EnergyWidgetEntry {
+        let healthKit = HealthKitQueryService()
+        let cacheManager = AverageDataCacheManager()
+
+        // Try to get fresh today's data from HealthKit
+        let todayData: [HourlyEnergyData]
+        let todayTotal: Double
+
+        do {
+            let hourlyTotals = try await healthKit.fetchTodayHourlyTotals()
+            todayData = hourlyTotals
+            todayTotal = hourlyTotals.last?.calories ?? 0
+        } catch {
+            print("Widget failed to fetch today's HealthKit data: \(error)")
+            // Fallback to cached data
+            return loadCachedEntry(forDate: date)
+        }
+
+        // Load or refresh average data cache
+        let averageData: [HourlyEnergyData]
+        let projectedTotal: Double
+
+        if cacheManager.shouldRefresh() {
+            // Cache is stale or missing - refresh it
+            do {
+                let (total, hourlyData) = try await healthKit.fetchAverageData()
+                projectedTotal = total
+                averageData = hourlyData
+
+                // Save to cache for future use
+                let cache = AverageDataCache(
+                    averageHourlyPattern: hourlyData,
+                    projectedTotal: total,
+                    cachedAt: Date(),
+                    cacheVersion: 1
+                )
+                try? cacheManager.save(cache)
+            } catch {
+                print("Widget failed to fetch average data: \(error)")
+                // Try to use stale cache as fallback
+                if let staleCache = cacheManager.load() {
+                    averageData = staleCache.toHourlyEnergyData()
+                    projectedTotal = staleCache.projectedTotal
+                } else {
+                    // No cache available - return today-only entry
+                    return EnergyWidgetEntry(
+                        date: date,
+                        todayTotal: todayTotal,
+                        averageAtCurrentHour: 0,
+                        projectedTotal: 0,
+                        moveGoal: loadCachedMoveGoal(),
+                        todayHourlyData: todayData,
+                        averageHourlyData: []
+                    )
+                }
+            }
+        } else {
+            // Use fresh cache
+            if let cache = cacheManager.load() {
+                averageData = cache.toHourlyEnergyData()
+                projectedTotal = cache.projectedTotal
+            } else {
+                // Shouldn't happen (shouldRefresh would return true), but handle gracefully
+                averageData = []
+                projectedTotal = 0
+            }
+        }
+
+        // Calculate interpolated average at current hour
+        let averageAtCurrentHour = averageData.interpolatedValue(at: date) ?? 0
+
+        return EnergyWidgetEntry(
+            date: date,
+            todayTotal: todayTotal,
+            averageAtCurrentHour: averageAtCurrentHour,
+            projectedTotal: projectedTotal,
+            moveGoal: loadCachedMoveGoal(),
+            todayHourlyData: todayData,
+            averageHourlyData: averageData
+        )
+    }
+
+    /// Load cached entry from shared container (fallback)
+    private func loadCachedEntry(forDate date: Date = Date()) -> EnergyWidgetEntry {
         do {
             let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
             return EnergyWidgetEntry(
@@ -137,8 +220,18 @@ struct EnergyWidgetProvider: TimelineProvider {
                 averageHourlyData: sharedData.averageHourlyData.map { $0.toHourlyEnergyData() }
             )
         } catch {
-            print("Widget failed to load energy data: \(error)")
-            return nil
+            print("Widget failed to load cached energy data: \(error)")
+            return .placeholder
+        }
+    }
+
+    /// Load cached move goal (goals don't change frequently)
+    private func loadCachedMoveGoal() -> Double {
+        do {
+            let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
+            return sharedData.moveGoal
+        } catch {
+            return 800  // Default fallback
         }
     }
 }

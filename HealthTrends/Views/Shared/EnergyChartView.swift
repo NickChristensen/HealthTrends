@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import HealthTrendsShared
 
 // MARK: - Constants
 

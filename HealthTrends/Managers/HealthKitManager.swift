@@ -1,6 +1,8 @@
 import Foundation
 import HealthKit
 import Combine
+import WidgetKit
+import HealthTrendsShared
 
 @MainActor
 final class HealthKitManager: ObservableObject {
@@ -166,7 +168,7 @@ final class HealthKitManager: ObservableObject {
         // Increment refresh counter to force UI redraw (updates NOW label even if data unchanged)
         self.refreshCount += 1
 
-        // Write data to shared container for widget access
+        // Write data to shared container for widget access (fallback)
         try? SharedEnergyDataManager.shared.writeEnergyData(
             todayTotal: self.todayTotal,
             averageAtCurrentHour: self.averageAtCurrentHour,
@@ -175,6 +177,18 @@ final class HealthKitManager: ObservableObject {
             todayHourlyData: self.todayHourlyData,
             averageHourlyData: self.averageHourlyData
         )
+
+        // Write average data to cache for widget to use
+        let cache = AverageDataCache(
+            averageHourlyPattern: self.averageHourlyData,
+            projectedTotal: self.projectedTotal,
+            cachedAt: Date(),
+            cacheVersion: 1
+        )
+        try? AverageDataCacheManager().save(cache)
+
+        // Reload widget timelines to pick up fresh data
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // Fetch Move goal from Activity Summary
@@ -255,7 +269,7 @@ final class HealthKitManager: ObservableObject {
             cumulativeData.append(HourlyEnergyData(hour: timestamp, calories: runningTotal))
         }
 
-        // Add current hour progress (timestamp = current time, not end of hour)
+        // A    dd current hour progress (timestamp = current time, not end of hour)
         let currentHourCalories = hourlyData.first(where: { $0.hour == currentHourStart })?.calories ?? 0
         let total = runningTotal + currentHourCalories
 

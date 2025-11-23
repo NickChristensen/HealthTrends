@@ -1,4 +1,5 @@
 import Foundation
+import HealthTrendsShared
 
 /// Shared data structure for communicating energy data between the app and widget
 struct SharedEnergyData: Codable {
