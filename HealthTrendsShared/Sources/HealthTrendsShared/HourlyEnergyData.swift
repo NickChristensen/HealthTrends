@@ -20,21 +20,44 @@ extension Array where Element == HourlyEnergyData {
     /// - Parameter date: The date/time to interpolate at
     /// - Returns: Interpolated calorie value, or nil if insufficient data
     public func interpolatedValue(at date: Date) -> Double? {
-        let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: date)
-        let currentMinute = calendar.component(.minute, from: date)
-
-        // Find the average values for current hour and next hour
-        guard let currentHourData = self.first(where: {
-            calendar.component(.hour, from: $0.hour) == currentHour
-        }), let nextHourData = self.first(where: {
-            calendar.component(.hour, from: $0.hour) == currentHour + 1
-        }) else {
-            return nil
+        // Filter to only on-the-hour data points (exclude interpolated NOW points)
+        // Data is already sorted chronologically in the array
+        let onTheHourData = self.filter {
+            Calendar.current.component(.minute, from: $0.hour) == 0
         }
 
-        // Interpolate based on minutes into the hour
-        let progress = Double(currentMinute) / 60.0
-        return currentHourData.calories + (nextHourData.calories - currentHourData.calories) * progress
+        guard !onTheHourData.isEmpty else { return nil }
+
+        // Find the two adjacent hourly data points that bracket the target time
+        // This automatically handles hour 23 → 0 wraparound via chronological date comparison
+        var lowerBound: HourlyEnergyData?
+        var upperBound: HourlyEnergyData?
+
+        for data in onTheHourData {
+            if data.hour <= date {
+                lowerBound = data
+            } else {
+                upperBound = data
+                break
+            }
+        }
+
+        // Edge cases
+        guard let lower = lowerBound else {
+            // Before first data point - return first value
+            return onTheHourData.first?.calories
+        }
+
+        guard let upper = upperBound else {
+            // After last data point - return last value
+            return onTheHourData.last?.calories
+        }
+
+        // Linear interpolation between two points
+        let timeRange = upper.hour.timeIntervalSince(lower.hour)
+        let timeElapsed = date.timeIntervalSince(lower.hour)
+        let progress = timeElapsed / timeRange
+
+        return lower.calories + (upper.calories - lower.calories) * progress
     }
 }
