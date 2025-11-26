@@ -110,17 +110,82 @@ struct EnergyWidgetProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyWidgetEntry>) -> Void) {
         let currentDate = Date()
+        let calendar = Calendar.current
 
         // Use hybrid approach: query HealthKit for today, use cached average data
         Task {
-            let entry = await loadFreshEntry(forDate: currentDate)
+            var entries: [EnergyWidgetEntry] = []
+            let currentEntry = await loadFreshEntry(forDate: currentDate)
+            entries.append(currentEntry)
 
-            // Schedule next refresh in 15 minutes
-            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
-            let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+            // Calculate next refresh time - use guards for safety
+            guard let next15MinUpdate = calendar.date(byAdding: .minute, value: 15, to: currentDate) else {
+                // Fallback: simple timeline with current entry and default 15-min refresh
+                let fallbackTimeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(900)))
+                completion(fallbackTimeline)
+                return
+            }
+
+            guard let midnight = calendar.nextDate(after: currentDate, matching: DateComponents(hour: 0), matchingPolicy: .nextTime) else {
+                // Fallback: no midnight entry, just normal 15-min refresh
+                let timeline = Timeline(entries: entries, policy: .after(next15MinUpdate))
+                completion(timeline)
+                return
+            }
+
+            let timeline: Timeline<EnergyWidgetEntry>
+
+            if midnight < next15MinUpdate {
+                // Midnight is coming up - create zero-state entry
+                let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
+                print("Widget: Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
+
+                let midnightEntry = createMidnightEntry(
+                    date: midnight,
+                    moveGoal: currentEntry.moveGoal,
+                    averageHourlyData: currentEntry.averageHourlyData,
+                    projectedTotal: currentEntry.projectedTotal
+                )
+                entries.append(midnightEntry)
+
+                // Reload 1 minute after midnight for fresh data
+                guard let reloadTime = calendar.date(byAdding: .minute, value: 1, to: midnight) else {
+                    // Fallback: use .atEnd
+                    timeline = Timeline(entries: entries, policy: .atEnd)
+                    completion(timeline)
+                    return
+                }
+
+                timeline = Timeline(entries: entries, policy: .after(reloadTime))
+            } else {
+                timeline = Timeline(entries: entries, policy: .after(next15MinUpdate))
+            }
 
             completion(timeline)
         }
+    }
+
+    /// Create a predictive zero-state entry for midnight
+    /// We know that "Today" resets to 0 at midnight, so this is a valid deterministic state
+    /// We preserve average data for visual continuity until the next reload
+    private func createMidnightEntry(
+        date: Date,
+        moveGoal: Double,
+        averageHourlyData: [HourlyEnergyData],
+        projectedTotal: Double
+    ) -> EnergyWidgetEntry {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+
+        return EnergyWidgetEntry(
+            date: date,
+            todayTotal: 0,  // Known: Today resets to 0 at midnight
+            averageAtCurrentHour: 0,  // At midnight, average is also 0
+            projectedTotal: projectedTotal,  // Keep yesterday's projected total for reference
+            moveGoal: moveGoal,  // Move goal doesn't change
+            todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
+            averageHourlyData: averageHourlyData  // Keep average pattern for visual continuity
+        )
     }
 
     /// Load fresh entry using hybrid approach: query HealthKit for today, use cached average
@@ -138,8 +203,29 @@ struct EnergyWidgetProvider: TimelineProvider {
             todayTotal = hourlyTotals.last?.calories ?? 0
         } catch {
             print("Widget failed to fetch today's HealthKit data: \(error)")
-            // Fallback to cached data
-            return loadCachedEntry(forDate: date)
+
+            // Check if cached data is from a different day
+            let calendar = Calendar.current
+            let cachedEntry = loadCachedEntry(forDate: date)
+
+            // If cached data is from yesterday, return zero-state instead
+            if let lastDataPoint = cachedEntry.todayHourlyData.last,
+               !calendar.isDate(lastDataPoint.hour, inSameDayAs: date) {
+                print("Widget: Cached data is from previous day - returning zero-state for new day")
+
+                return EnergyWidgetEntry(
+                    date: date,
+                    todayTotal: 0,
+                    averageAtCurrentHour: 0,
+                    projectedTotal: cachedEntry.projectedTotal,
+                    moveGoal: cachedEntry.moveGoal,
+                    todayHourlyData: [HourlyEnergyData(hour: calendar.startOfDay(for: date), calories: 0)],
+                    averageHourlyData: cachedEntry.averageHourlyData
+                )
+            }
+
+            // Same day - safe to use cached data
+            return cachedEntry
         }
 
         // Load or refresh average data cache
