@@ -202,7 +202,9 @@ struct EnergyWidgetProvider: TimelineProvider {
             todayData = hourlyTotals
             todayTotal = hourlyTotals.last?.calories ?? 0
         } catch {
-            print("Widget failed to fetch today's HealthKit data: \(error)")
+            print("❌ Widget FAILED to fetch today's HealthKit data at \(date)")
+            print("❌ Error: \(error)")
+            print("❌ Error type: \(type(of: error))")
 
             // Check if cached data is from a different day
             let calendar = Calendar.current
@@ -248,7 +250,9 @@ struct EnergyWidgetProvider: TimelineProvider {
                 )
                 try? cacheManager.save(cache)
             } catch {
-                print("Widget failed to fetch average data: \(error)")
+                print("❌ Widget FAILED to fetch average data at \(date)")
+                print("❌ Error: \(error)")
+                print("❌ Error type: \(type(of: error))")
                 // Try to use stale cache as fallback
                 if let staleCache = cacheManager.load() {
                     averageData = staleCache.toHourlyEnergyData()
