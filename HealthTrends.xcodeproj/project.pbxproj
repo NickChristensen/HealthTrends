@@ -493,6 +493,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DailyActiveEnergyWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = DailyActiveEnergyWidget;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "This widget needs access to your health data to display your active energy trends.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -524,6 +525,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DailyActiveEnergyWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = DailyActiveEnergyWidget;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "This widget needs access to your health data to display your active energy trends.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
