@@ -367,14 +367,15 @@ struct DailyActiveEnergyWidget: Widget {
 
 // MARK: - Previews
 
-#Preview(as: .systemMedium) {
-    DailyActiveEnergyWidget()
-} timeline: {
-    EnergyWidgetEntry.placeholder
-}
+//#Preview(as: .systemMedium) {
+//    DailyActiveEnergyWidget()
+//} timeline: {
+//    EnergyWidgetEntry.placeholder
+//}
 
 #Preview(as: .systemLarge) {
     DailyActiveEnergyWidget()
 } timeline: {
     EnergyWidgetEntry.placeholder
 }
+

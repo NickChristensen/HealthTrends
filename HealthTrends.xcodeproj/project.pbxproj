@@ -55,6 +55,7 @@
 		018DCA812EC97B5F001E5652 /* Exceptions for "HealthTrends" folder in "DailyActiveEnergyWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Assets.xcassets,
 				Models/HourlyEnergyData.swift,
 				Models/SharedEnergyData.swift,
 				Utilities/TextMeasurement.swift,

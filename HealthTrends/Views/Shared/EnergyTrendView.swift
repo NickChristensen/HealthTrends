@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let activeEnergyColor: Color = Color(red: 254/255, green: 73/255, blue: 1/255)
-
 /// Reusable view combining statistics header and energy chart
 /// Can be used in both main app and widgets
 /// Uses flexible height layout to adapt to container size
@@ -20,13 +18,13 @@ struct EnergyTrendView: View {
             VStack(spacing: spacing) {
                 // Header with statistics (fixed height)
                 HStack(spacing: 0) {
-                    HeaderStatistic(label: "Today", statistic: todayTotal, color: activeEnergyColor)
+                    HeaderStatistic(label: "Today", statistic: todayTotal, color: Color("ActiveEnergyColor"))
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HeaderStatistic(label: "Average", statistic: averageAtCurrentHour, color: Color(.systemGray))
+                    HeaderStatistic(label: "Average", statistic: averageAtCurrentHour, color: Color("AverageStatisticColor"))
                         .frame(maxWidth: .infinity, alignment: .center)
 
-                    HeaderStatistic(label: "Total", statistic: projectedTotal, color: Color(.systemGray2), circleColor: Color(.systemGray4))
+                    HeaderStatistic(label: "Total", statistic: projectedTotal, color: Color("TotalStatisticTextColor"), circleColor: Color("TotalStatisticCircleColor"))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .fixedSize(horizontal: false, vertical: true)
