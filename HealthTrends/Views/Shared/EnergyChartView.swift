@@ -1,11 +1,10 @@
 import SwiftUI
 import Charts
+import WidgetKit
 import HealthTrendsShared
 
 // MARK: - Constants
 
-private let activeEnergyColor: Color = Color(red: 254/255, green: 73/255, blue: 1/255)
-private let goalColor: Color = Color(.systemGray)
 private let lineWidth: CGFloat = 4
 
 /// Debug: Override current time for testing. Set to nil to use real time.
@@ -151,11 +150,17 @@ struct EnergyChartView: View {
     let moveGoal: Double
     let projectedTotal: Double
 
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+
     private var calendar: Calendar { Calendar.current }
     private var now: Date { getCurrentTime() }
     private var currentHour: Int { calendar.component(.hour, from: now) }
     private var startOfCurrentHour: Date {
         calendar.dateInterval(of: .hour, for: now)!.start
+    }
+
+    private var pointHaloColor: Color {
+        widgetRenderingMode == .accented ? .clear : Color("WidgetBackground")
     }
 
     /// Renders an hourly tick mark with appropriate styling
@@ -238,8 +243,8 @@ struct EnergyChartView: View {
 
     @ChartContentBuilder
     private var averageLines: some ChartContent {
-        let darkGray = Color(.systemGray4)
-        let lightGray = Color(.systemGray6)
+        let darkGray = Color("AverageLineBeforeNowColor")
+        let lightGray = Color("AverageLineAfterNowColor")
 
         // BEFORE NOW: darker gray line (past data → NOW)
         ForEach(averageDataBeforeNow) { data in
@@ -250,6 +255,7 @@ struct EnergyChartView: View {
             )
             .foregroundStyle(darkGray)
             .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+            .opacity(widgetRenderingMode.secondaryOpacity)
         }
 
         // AFTER NOW: lighter gray line (NOW → future data)
@@ -261,6 +267,7 @@ struct EnergyChartView: View {
             )
             .foregroundStyle(lightGray)
             .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+            .opacity(widgetRenderingMode.tertiaryOpacity)
         }
     }
 
@@ -269,8 +276,9 @@ struct EnergyChartView: View {
         // Single continuous line including current hour progress
         ForEach(todayHourlyData) { data in
             LineMark(x: .value("Hour", data.hour), y: .value("Calories", data.calories), series: .value("Series", "Today"))
-                .foregroundStyle(activeEnergyColor)
+                .foregroundStyle(Color("ActiveEnergyColor"))
                 .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                .opacity(widgetRenderingMode.primaryOpacity)
         }
     }
 
@@ -278,8 +286,8 @@ struct EnergyChartView: View {
     private var averagePoint: some ChartContent {
         // Show average point at NOW (interpolated value)
         if let interpolated = interpolatedAverageAtNow {
-            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(.background).symbolSize(256)
-            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(Color(.systemGray4)).symbolSize(100)
+            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(pointHaloColor).symbolSize(256)
+            PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories)).foregroundStyle(Color("AverageLineBeforeNowColor")).symbolSize(100).opacity(widgetRenderingMode.secondaryOpacity)
         }
     }
 
@@ -287,8 +295,8 @@ struct EnergyChartView: View {
     private var todayPoint: some ChartContent {
         if let last = todayHourlyData.last {
             // Use NOW for x-position to align with average point and now line
-            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(.background).symbolSize(256)
-            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(activeEnergyColor).symbolSize(100)
+            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(pointHaloColor).symbolSize(256)
+            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(Color("ActiveEnergyColor")).symbolSize(100).opacity(widgetRenderingMode.primaryOpacity)
         }
     }
 
@@ -296,7 +304,7 @@ struct EnergyChartView: View {
     private var goalLine: some ChartContent {
         if moveGoal > 0 {
             RuleMark(y: .value("Goal", moveGoal))
-                .foregroundStyle(goalColor.opacity(0.5))
+                .foregroundStyle(Color("GoalLineColor").opacity(0.5))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
     }
@@ -304,8 +312,9 @@ struct EnergyChartView: View {
     @ChartContentBuilder
     private var nowLine: some ChartContent {
         RuleMark(x: .value("Now", now))
-            .foregroundStyle(Color(.systemGray5))
+            .foregroundStyle(Color("NowLineColor"))
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .opacity(widgetRenderingMode.tertiaryOpacity)
     }
 
     var body: some View {
@@ -357,14 +366,8 @@ struct EnergyChartView: View {
                         Text("\(Int(moveGoal)) cal")
                             .font(.caption)
                             .fontWeight(.bold)
-                            .foregroundStyle(goalColor)
-                            .padding(2)
-                            .background(.background.opacity(0.5))
-                            .cornerRadius(4)
-                            .offset(
-                                x: -2 /* padding */,
-                                y: goalYPosition
-                            )
+                            .foregroundStyle(Color("GoalLineColor"))
+                            .offset(y: goalYPosition)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
                 }
@@ -374,5 +377,24 @@ struct EnergyChartView: View {
                     .padding(.top, 8)
             }
         }
+    }
+}
+
+// MARK: - WidgetRenderingMode Extension
+
+extension WidgetRenderingMode {
+    /// Primary content opacity (100% in all modes)
+    var primaryOpacity: Double {
+        self == .accented ? 1.0 : 1.0
+    }
+
+    /// Secondary content opacity (75% in accented/glass mode)
+    var secondaryOpacity: Double {
+        self == .accented ? 0.5 : 1.0
+    }
+
+    /// Tertiary content opacity (50% in accented/glass mode)
+    var tertiaryOpacity: Double {
+        self == .accented ? 0.25 : 1.0
     }
 }

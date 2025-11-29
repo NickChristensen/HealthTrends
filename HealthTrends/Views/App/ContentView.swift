@@ -60,6 +60,7 @@ struct ContentView: View {
             }
             .padding()
         }
+        .background(Color("AppBackground"))
         #if targetEnvironment(simulator)
         .onShake {
             showingDevTools = true

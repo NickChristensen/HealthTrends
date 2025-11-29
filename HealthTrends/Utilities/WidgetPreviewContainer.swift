@@ -45,7 +45,7 @@ struct WidgetPreviewContainer<Content: View>: View {
             content()
                 .padding(16) // Simulate widget system content margins
                 .frame(width: widgetSize.width, height: widgetSize.height)
-                .background(Color(.systemBackground))
+                .background(Color("WidgetBackground"))
                 .clipShape(RoundedRectangle(cornerRadius: 20))
                 .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
         }
