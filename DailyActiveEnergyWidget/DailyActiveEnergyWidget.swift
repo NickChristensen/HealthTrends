@@ -10,6 +10,7 @@ import SwiftUI
 import HealthKit
 import HealthTrendsShared
 import AppIntents
+import os
 
 // MARK: - Timeline Entry
 
@@ -101,6 +102,8 @@ struct EnergyWidgetEntry: TimelineEntry {
 // MARK: - Timeline Provider
 
 struct EnergyWidgetProvider: AppIntentTimelineProvider {
+    private static let logger = Logger(subsystem: "com.finelycrafted.HealthTrends", category: "DailyActiveEnergyWidget")
+
     func placeholder(in context: Context) -> EnergyWidgetEntry {
         .placeholder
     }
@@ -135,7 +138,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
         if midnight < next15MinUpdate {
             // Midnight is coming up - create zero-state entry
             let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
-            print("Widget: Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
+            Self.logger.info("Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
 
             let midnightEntry = createMidnightEntry(
                 date: midnight,
@@ -198,10 +201,24 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
             let hourlyTotals = try await healthKit.fetchTodayHourlyTotals()
             todayData = hourlyTotals
             todayTotal = hourlyTotals.last?.calories ?? 0
+
+            // Check data freshness - warn if older than 30 minutes
+            if let latestDataPoint = hourlyTotals.last {
+                let dataAge = date.timeIntervalSince(latestDataPoint.hour)
+
+                // Warning if data is more than 30 minutes old
+                if dataAge > 1800 {
+                    Self.logger.warning("⚠️ Stale HealthKit data detected")
+                    Self.logger.warning("⚠️ Query time: \(date, privacy: .public)")
+                    Self.logger.warning("⚠️ Latest data point: \(latestDataPoint.hour, privacy: .public)")
+                    Self.logger.warning("⚠️ Data age: \(Int(dataAge/60)) minutes (\(Int(dataAge))s)")
+                    Self.logger.warning("⚠️ Today total: \(todayTotal) cal from \(hourlyTotals.count) data points")
+                }
+            }
         } catch {
-            print("❌ Widget FAILED to fetch today's HealthKit data at \(date)")
-            print("❌ Error: \(error)")
-            print("❌ Error type: \(type(of: error))")
+            Self.logger.error("❌ Widget FAILED to fetch today's HealthKit data at \(date, privacy: .public)")
+            Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
 
             // Check if cached data is from a different day
             let calendar = Calendar.current
@@ -210,7 +227,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
             // If cached data is from yesterday, return zero-state instead
             if let lastDataPoint = cachedEntry.todayHourlyData.last,
                !calendar.isDate(lastDataPoint.hour, inSameDayAs: date) {
-                print("Widget: Cached data is from previous day - returning zero-state for new day")
+                Self.logger.info("Cached data is from previous day - returning zero-state for new day")
 
                 return EnergyWidgetEntry(
                     date: date,
@@ -248,9 +265,9 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                 )
                 try? cacheManager.save(cache)
             } catch {
-                print("❌ Widget FAILED to fetch average data at \(date)")
-                print("❌ Error: \(error)")
-                print("❌ Error type: \(type(of: error))")
+                Self.logger.error("❌ Widget FAILED to fetch average data at \(date, privacy: .public)")
+                Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error("❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
                 // Try to use stale cache as fallback
                 if let staleCache = cacheManager.load() {
                     averageData = staleCache.toHourlyEnergyData()
@@ -311,7 +328,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                 configuration: configuration
             )
         } catch {
-            print("Widget failed to load cached energy data: \(error)")
+            Self.logger.warning("Failed to load cached energy data: \(error.localizedDescription, privacy: .public)")
             return .placeholder
         }
     }
