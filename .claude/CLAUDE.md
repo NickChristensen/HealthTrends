@@ -315,38 +315,40 @@ Then "Today" = 467 cal (total from midnight to 1 PM)
 ---
 
 ### "Average"
-**Definition:** The average cumulative calories burned BY each hour, calculated across the last 30 days (excluding today).
+**Definition:** The average cumulative calories burned BY each hour, calculated across the last ~10 occurrences of the current weekday (excluding today).
 
-**Example:** At 1:00 PM:
-- Day 1: burned 400 cal by 1 PM
-- Day 2: burned 380 cal by 1 PM
+**Example:** At 1:00 PM on a Saturday:
+- Saturday 1: burned 400 cal by 1 PM
+- Saturday 2: burned 380 cal by 1 PM
 - ...
-- Day 30: burned 395 cal by 1 PM
+- Saturday 10: burned 395 cal by 1 PM
 
-Then "Average" at 1 PM = (400 + 380 + ... + 395) / 30 = 389 cal
+Then "Average" at 1 PM = (400 + 380 + ... + 395) / 10 = 389 cal
 
 **In Code:**
 - `averageHourlyData: [HourlyEnergyData]` - Average cumulative values at each hour
-  - For hour H: average of (day1_total_by_H + day2_total_by_H + ... + day30_total_by_H) / 30
+  - For hour H: average of (saturday1_total_by_H + saturday2_total_by_H + ... + saturday10_total_by_H) / 10
   - Example: `[8, 12, ..., 350, 389]` (cumulative averages)
 
 **Display:** Show the value at the current hour (e.g., 389 cal at 1 PM)
 
+**Note:** Uses weekday filtering to account for weekday variability in activity patterns and schedules.
+
 ---
 
 ### "Total"
-**Definition:** The average of complete daily totals from the last 30 days (excluding today).
+**Definition:** The average of complete daily totals from the last ~10 occurrences of the current weekday (excluding today).
 
-**Example:**
-- Day 1: burned 1,050 cal (full day)
-- Day 2: burned 1,020 cal (full day)
+**Example:** On a Saturday:
+- Saturday 1: burned 1,050 cal (full day)
+- Saturday 2: burned 1,020 cal (full day)
 - ...
-- Day 30: burned 1,032 cal (full day)
+- Saturday 10: burned 1,032 cal (full day)
 
-Then "Total" = (1,050 + 1,020 + ... + 1,032) / 30 = 1,034 cal
+Then "Total" = (1,050 + 1,020 + ... + 1,032) / 10 = 1,034 cal
 
 **In Code:**
-- `projectedTotal: Double` - Average of complete daily totals
+- `projectedTotal: Double` - Average of complete daily totals for matching weekdays
   - This represents where you'd end up at midnight if you follow the average pattern
 
 **Visual:** Shown as a horizontal green line on the chart and a green statistic

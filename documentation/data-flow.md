@@ -130,26 +130,30 @@ This document traces the complete path of data from HealthKit to the widget UI f
 
 ## 2. "Average" Header Statistic
 
-### Step 1: HealthKit Query (30-Day Range)
-- **Data Point**: Raw active energy samples from past 30 days (excluding today)
-- **File/Method**: `HealthKitQueryService.swift` → `fetchAverageData()` (lines 60-80)
-- **Input**: Date range (30 days ago → yesterday midnight)
+> **Note:** As of issue #9, averages are calculated using **weekday filtering** to account for weekday variability in activity patterns. The algorithm queries the last 70 days but only processes data from days matching the current weekday (e.g., if today is Saturday, only past Saturdays are used). This typically results in ~10 occurrences being averaged.
+
+### Step 1: HealthKit Query (70-Day Range with Weekday Filtering)
+- **Data Point**: Raw active energy samples from past 70 days (excluding today), filtered to current weekday
+- **File/Method**: `HealthKitQueryService.swift` → `fetchAverageData()` (lines 60-84)
+- **Input**: Date range (70 days ago → yesterday midnight) + weekday filter
   ```swift
-  // Example: Query historical data
-  thirtyDaysAgo = 2025-10-27 00:00:00
+  // Example: Query historical data for matching weekdays
+  seventyDaysAgo = 2025-09-17 00:00:00
   yesterday = 2025-11-25 23:59:59
+  todayWeekday = 7  // Saturday
+  // Only samples from Saturdays will be processed
   ```
-- **Output**: Array of `HKQuantitySample` objects
+- **Output**: Array of `HKQuantitySample` objects (from ~10 matching weekdays)
   ```swift
-  // Example: ~30 days worth of samples
+  // Example: ~10 Saturdays worth of samples
   [
-    HKQuantitySample(startDate: 2025-10-27 00:15:00, calories: 6.1),
-    HKQuantitySample(startDate: 2025-10-27 01:22:00, calories: 9.2),
-    // ... thousands of samples across 30 days
-    HKQuantitySample(startDate: 2025-11-25 23:45:00, calories: 7.8),
+    HKQuantitySample(startDate: 2025-09-21 00:15:00, calories: 6.1),  // Saturday
+    HKQuantitySample(startDate: 2025-09-21 01:22:00, calories: 9.2),  // Saturday
+    // ... samples from ~10 Saturdays
+    HKQuantitySample(startDate: 2025-11-23 23:45:00, calories: 7.8),  // Saturday
   ]
   ```
-- **Explanation**: Retrieves historical samples to calculate average patterns. Excludes today to avoid skewing the average with incomplete data.
+- **Explanation**: Retrieves historical samples to calculate average patterns, but filters to only include the current weekday. This accounts for different activity patterns on weekdays vs weekends. Excludes today to avoid skewing the average with incomplete data.
 
 ### Step 2: Group by Day and Hour
 - **Data Point**: Daily hourly breakdowns
@@ -184,23 +188,23 @@ This document traces the complete path of data from HealthKit to the widget UI f
 - **Explanation**: For each day, converts hourly totals into a running sum. Hour 0 = first hour total, Hour 1 = hour 0 + hour 1, etc. This represents "how much burned by each hour" pattern.
 
 ### Step 4: Average Across Days by Hour
-- **Data Point**: Average cumulative total at each hour across 30 days
+- **Data Point**: Average cumulative total at each hour across matching weekdays
 - **File/Method**: `HealthKitQueryService.swift` → `fetchCumulativeAverageHourlyPattern()` (lines 185-200)
-- **Input**: Daily cumulative data from Step 3
+- **Input**: Daily cumulative data from Step 3 (only matching weekdays)
 - **Output**: Dictionary of hour → average cumulative calories
   ```swift
-  // Example: Average pattern across all 30 days
+  // Example: Average pattern across all matching weekdays (~10 Saturdays)
   averageCumulativeByHour = [
-    0: 40.5,    // Average of all days' totals by hour 0
-    1: 80.2,    // Average of all days' totals by hour 1
-    2: 130.1,   // Average of all days' totals by hour 2
+    0: 40.5,    // Average of all Saturdays' totals by hour 0
+    1: 80.2,    // Average of all Saturdays' totals by hour 1
+    2: 130.1,   // Average of all Saturdays' totals by hour 2
     // ...
-    13: 389.0,  // Average of all days' totals by 1 PM
+    13: 389.0,  // Average of all Saturdays' totals by 1 PM
     // ...
-    23: 1034.0, // Average of all days' total daily calories
+    23: 1034.0, // Average of all Saturdays' total daily calories
   ]
   ```
-- **Explanation**: For each hour (0-23), averages the cumulative totals from all 30 days. Filters out zero values to avoid skewing from incomplete data. This represents the typical cumulative burn pattern.
+- **Explanation**: For each hour (0-23), averages the cumulative totals from all matching weekdays. Filters out zero values to avoid skewing from incomplete data. This represents the typical cumulative burn pattern for this specific day of the week.
 
 ### Step 5: Convert to HourlyEnergyData Array
 - **Data Point**: Formatted average hourly data with timestamps
@@ -340,29 +344,31 @@ This document traces the complete path of data from HealthKit to the widget UI f
 
 ## 3. "Total" Header Statistic
 
+> **Note:** Uses the same weekday filtering as "Average" (see note in section 2 above).
+
 ### Step 1: HealthKit Query (Same as Average Step 1)
-- **Data Point**: Raw active energy samples from past 30 days
-- **File/Method**: `HealthKitQueryService.swift` → `fetchAverageData()` (lines 60-68)
-- **Input**: Date range (30 days ago → yesterday)
+- **Data Point**: Raw active energy samples from past 70 days, filtered to current weekday
+- **File/Method**: `HealthKitQueryService.swift` → `fetchAverageData()` (lines 60-84)
+- **Input**: Date range (70 days ago → yesterday) + weekday filter
 - **Output**: Array of `HKQuantitySample` objects (same query as Average data)
-- **Explanation**: Uses the same historical samples to calculate both hourly pattern (for Average) and daily totals (for Total).
+- **Explanation**: Uses the same historical samples (filtered by weekday) to calculate both hourly pattern (for Average) and daily totals (for Total).
 
 ### Step 2: Group by Day
-- **Data Point**: Complete daily totals
-- **File/Method**: `HealthKitQueryService.swift` → `fetchDailyTotals()` (lines 114-138)
+- **Data Point**: Complete daily totals (only matching weekdays)
+- **File/Method**: `HealthKitQueryService.swift` → `fetchDailyTotals()` (lines 117-150)
 - **Input**: Array of `HKQuantitySample` from Step 1
-- **Output**: Array of daily total calories
+- **Output**: Array of daily total calories (only matching weekdays)
   ```swift
-  // Example: Total calories for each of 30 days
+  // Example: Total calories for each matching weekday (~10 Saturdays)
   [
-    1050.0,  // 2025-10-27 total
-    1020.0,  // 2025-10-28 total
-    998.0,   // 2025-10-29 total
-    // ... 27 more days
-    1032.0,  // 2025-11-25 total
+    1050.0,  // 2025-09-21 total (Saturday)
+    1020.0,  // 2025-09-28 total (Saturday)
+    998.0,   // 2025-10-05 total (Saturday)
+    // ... ~7 more Saturdays
+    1032.0,  // 2025-11-23 total (Saturday)
   ]
   ```
-- **Explanation**: Samples are grouped by day and summed to get each day's complete total. Represents "how much was burned in a full day" for each of the 30 days.
+- **Explanation**: Samples are grouped by day (filtered by weekday) and summed to get each day's complete total. Represents "how much was burned in a full day" for each of the matching weekdays.
 
 ### Step 3: Calculate Average Daily Total
 - **Data Point**: Mean of all daily totals

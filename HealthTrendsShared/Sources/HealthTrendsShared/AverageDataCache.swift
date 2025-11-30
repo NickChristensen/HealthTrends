@@ -1,6 +1,6 @@
 import Foundation
 
-/// Cached average energy data from 30-day pattern
+/// Cached average energy data from matching weekday pattern (last ~10 occurrences)
 /// Refreshed once per day to minimize expensive HealthKit queries
 public struct AverageDataCache: Codable, Sendable {
     public let averageHourlyPattern: [SerializableHourlyEnergyData]
