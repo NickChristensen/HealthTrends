@@ -14,9 +14,7 @@ struct ContentView: View {
     @State private var authorizationRequested = false
     @State private var lastRefreshMinute: Int = Calendar.current.component(.minute, from: Date())
     @Environment(\.scenePhase) private var scenePhase
-    #if targetEnvironment(simulator)
     @State private var showingDevTools = false
-    #endif
 
     // Timer that checks every second for minute boundary changes
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -65,13 +63,13 @@ struct ContentView: View {
                 .padding()
             }
         }
-        #if targetEnvironment(simulator)
         .onShake {
             showingDevTools = true
         }
         .sheet(isPresented: $showingDevTools) {
             DevelopmentToolsSheet(healthKitManager: healthKitManager)
         }
+        #if targetEnvironment(simulator)
         .overlay(alignment: .bottomTrailing) {
             Button(action: { showingDevTools = true }) {
                 Image(systemName: "wrench.and.screwdriver")

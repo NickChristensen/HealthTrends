@@ -1,7 +1,6 @@
 import SwiftUI
 import WidgetKit
 
-#if targetEnvironment(simulator)
 /// State for action buttons with icon transitions
 enum ActionButtonState {
     case idle
@@ -74,6 +73,7 @@ struct DevelopmentToolsSheet: View {
                 }
                 .listRowBackground(Color(.systemBackground))
 
+                #if targetEnvironment(simulator)
                 ActionButton(
                     title: "Generate Sample Data",
                     icon: "testtube.2",
@@ -88,6 +88,7 @@ struct DevelopmentToolsSheet: View {
                     }
                 }
                 .listRowBackground(Color(.systemBackground))
+                #endif
 
                 ActionButton(
                     title: "Reload Widgets",
@@ -111,4 +112,4 @@ struct DevelopmentToolsSheet: View {
         .presentationDetents([.medium])
     }
 }
-#endif
+
