@@ -9,6 +9,7 @@ import WidgetKit
 import SwiftUI
 import HealthKit
 import HealthTrendsShared
+import AppIntents
 
 // MARK: - Timeline Entry
 
@@ -20,6 +21,7 @@ struct EnergyWidgetEntry: TimelineEntry {
     let moveGoal: Double
     let todayHourlyData: [HourlyEnergyData]
     let averageHourlyData: [HourlyEnergyData]
+    let configuration: EnergyWidgetConfigurationIntent
 
     /// Placeholder entry with sample data for widget gallery
     static var placeholder: EnergyWidgetEntry {
@@ -30,7 +32,8 @@ struct EnergyWidgetEntry: TimelineEntry {
             projectedTotal: 1034,
             moveGoal: 800,
             todayHourlyData: generateSampleTodayData(),
-            averageHourlyData: generateSampleAverageData()
+            averageHourlyData: generateSampleAverageData(),
+            configuration: EnergyWidgetConfigurationIntent()
         )
     }
 
@@ -97,72 +100,64 @@ struct EnergyWidgetEntry: TimelineEntry {
 
 // MARK: - Timeline Provider
 
-struct EnergyWidgetProvider: TimelineProvider {
+struct EnergyWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> EnergyWidgetEntry {
         .placeholder
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (EnergyWidgetEntry) -> Void) {
+    func snapshot(for configuration: EnergyWidgetConfigurationIntent, in context: Context) async -> EnergyWidgetEntry {
         // For widget gallery - return quickly with cached data
-        let entry = loadCachedEntry()
-        completion(entry)
+        return loadCachedEntry(configuration: configuration)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyWidgetEntry>) -> Void) {
+    func timeline(for configuration: EnergyWidgetConfigurationIntent, in context: Context) async -> Timeline<EnergyWidgetEntry> {
         let currentDate = Date()
         let calendar = Calendar.current
 
         // Use hybrid approach: query HealthKit for today, use cached average data
-        Task {
-            var entries: [EnergyWidgetEntry] = []
-            let currentEntry = await loadFreshEntry(forDate: currentDate)
-            entries.append(currentEntry)
+        var entries: [EnergyWidgetEntry] = []
+        let currentEntry = await loadFreshEntry(forDate: currentDate, configuration: configuration)
+        entries.append(currentEntry)
 
-            // Calculate next refresh time - use guards for safety
-            guard let next15MinUpdate = calendar.date(byAdding: .minute, value: 15, to: currentDate) else {
-                // Fallback: simple timeline with current entry and default 15-min refresh
-                let fallbackTimeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(900)))
-                completion(fallbackTimeline)
-                return
-            }
-
-            guard let midnight = calendar.nextDate(after: currentDate, matching: DateComponents(hour: 0), matchingPolicy: .nextTime) else {
-                // Fallback: no midnight entry, just normal 15-min refresh
-                let timeline = Timeline(entries: entries, policy: .after(next15MinUpdate))
-                completion(timeline)
-                return
-            }
-
-            let timeline: Timeline<EnergyWidgetEntry>
-
-            if midnight < next15MinUpdate {
-                // Midnight is coming up - create zero-state entry
-                let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
-                print("Widget: Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
-
-                let midnightEntry = createMidnightEntry(
-                    date: midnight,
-                    moveGoal: currentEntry.moveGoal,
-                    averageHourlyData: currentEntry.averageHourlyData,
-                    projectedTotal: currentEntry.projectedTotal
-                )
-                entries.append(midnightEntry)
-
-                // Reload 1 minute after midnight for fresh data
-                guard let reloadTime = calendar.date(byAdding: .minute, value: 1, to: midnight) else {
-                    // Fallback: use .atEnd
-                    timeline = Timeline(entries: entries, policy: .atEnd)
-                    completion(timeline)
-                    return
-                }
-
-                timeline = Timeline(entries: entries, policy: .after(reloadTime))
-            } else {
-                timeline = Timeline(entries: entries, policy: .after(next15MinUpdate))
-            }
-
-            completion(timeline)
+        // Calculate next refresh time - use guards for safety
+        guard let next15MinUpdate = calendar.date(byAdding: .minute, value: 15, to: currentDate) else {
+            // Fallback: simple timeline with current entry and default 15-min refresh
+            return Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(900)))
         }
+
+        guard let midnight = calendar.nextDate(after: currentDate, matching: DateComponents(hour: 0), matchingPolicy: .nextTime) else {
+            // Fallback: no midnight entry, just normal 15-min refresh
+            return Timeline(entries: entries, policy: .after(next15MinUpdate))
+        }
+
+        let timeline: Timeline<EnergyWidgetEntry>
+
+        if midnight < next15MinUpdate {
+            // Midnight is coming up - create zero-state entry
+            let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
+            print("Widget: Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
+
+            let midnightEntry = createMidnightEntry(
+                date: midnight,
+                moveGoal: currentEntry.moveGoal,
+                averageHourlyData: currentEntry.averageHourlyData,
+                projectedTotal: currentEntry.projectedTotal,
+                configuration: configuration
+            )
+            entries.append(midnightEntry)
+
+            // Reload 1 minute after midnight for fresh data
+            guard let reloadTime = calendar.date(byAdding: .minute, value: 1, to: midnight) else {
+                // Fallback: use .atEnd
+                return Timeline(entries: entries, policy: .atEnd)
+            }
+
+            timeline = Timeline(entries: entries, policy: .after(reloadTime))
+        } else {
+            timeline = Timeline(entries: entries, policy: .after(next15MinUpdate))
+        }
+
+        return timeline
     }
 
     /// Create a predictive zero-state entry for midnight
@@ -172,7 +167,8 @@ struct EnergyWidgetProvider: TimelineProvider {
         date: Date,
         moveGoal: Double,
         averageHourlyData: [HourlyEnergyData],
-        projectedTotal: Double
+        projectedTotal: Double,
+        configuration: EnergyWidgetConfigurationIntent
     ) -> EnergyWidgetEntry {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -184,12 +180,13 @@ struct EnergyWidgetProvider: TimelineProvider {
             projectedTotal: projectedTotal,  // Keep yesterday's projected total for reference
             moveGoal: moveGoal,  // Move goal doesn't change
             todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
-            averageHourlyData: averageHourlyData  // Keep average pattern for visual continuity
+            averageHourlyData: averageHourlyData,  // Keep average pattern for visual continuity
+            configuration: configuration
         )
     }
 
     /// Load fresh entry using hybrid approach: query HealthKit for today, use cached average
-    private func loadFreshEntry(forDate date: Date = Date()) async -> EnergyWidgetEntry {
+    private func loadFreshEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) async -> EnergyWidgetEntry {
         let healthKit = HealthKitQueryService()
         let cacheManager = AverageDataCacheManager()
 
@@ -208,7 +205,7 @@ struct EnergyWidgetProvider: TimelineProvider {
 
             // Check if cached data is from a different day
             let calendar = Calendar.current
-            let cachedEntry = loadCachedEntry(forDate: date)
+            let cachedEntry = loadCachedEntry(forDate: date, configuration: configuration)
 
             // If cached data is from yesterday, return zero-state instead
             if let lastDataPoint = cachedEntry.todayHourlyData.last,
@@ -222,7 +219,8 @@ struct EnergyWidgetProvider: TimelineProvider {
                     projectedTotal: cachedEntry.projectedTotal,
                     moveGoal: cachedEntry.moveGoal,
                     todayHourlyData: [HourlyEnergyData(hour: calendar.startOfDay(for: date), calories: 0)],
-                    averageHourlyData: cachedEntry.averageHourlyData
+                    averageHourlyData: cachedEntry.averageHourlyData,
+                    configuration: configuration
                 )
             }
 
@@ -266,7 +264,8 @@ struct EnergyWidgetProvider: TimelineProvider {
                         projectedTotal: 0,
                         moveGoal: loadCachedMoveGoal(),
                         todayHourlyData: todayData,
-                        averageHourlyData: []
+                        averageHourlyData: [],
+                        configuration: configuration
                     )
                 }
             }
@@ -292,12 +291,13 @@ struct EnergyWidgetProvider: TimelineProvider {
             projectedTotal: projectedTotal,
             moveGoal: loadCachedMoveGoal(),
             todayHourlyData: todayData,
-            averageHourlyData: averageData
+            averageHourlyData: averageData,
+            configuration: configuration
         )
     }
 
     /// Load cached entry from shared container (fallback)
-    private func loadCachedEntry(forDate date: Date = Date()) -> EnergyWidgetEntry {
+    private func loadCachedEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) -> EnergyWidgetEntry {
         do {
             let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
             return EnergyWidgetEntry(
@@ -307,7 +307,8 @@ struct EnergyWidgetProvider: TimelineProvider {
                 projectedTotal: sharedData.projectedTotal,
                 moveGoal: sharedData.moveGoal,
                 todayHourlyData: sharedData.todayHourlyData.map { $0.toHourlyEnergyData() },
-                averageHourlyData: sharedData.averageHourlyData.map { $0.toHourlyEnergyData() }
+                averageHourlyData: sharedData.averageHourlyData.map { $0.toHourlyEnergyData() },
+                configuration: configuration
             )
         } catch {
             print("Widget failed to load cached energy data: \(error)")
@@ -332,6 +333,20 @@ struct DailyActiveEnergyWidgetEntryView: View {
     var entry: EnergyWidgetProvider.Entry
 
     var body: some View {
+        if entry.configuration.tapAction == .refresh {
+            // Tap to refresh - use AppIntent button
+            Button(intent: RefreshWidgetIntent()) {
+                contentView
+            }
+            .buttonStyle(.plain)
+        } else {
+            // Tap to open app - use default widgetURL behavior
+            contentView
+                .widgetURL(URL(string: "healthtrends://"))
+        }
+    }
+
+    private var contentView: some View {
         EnergyTrendView(
             todayTotal: entry.todayTotal,
             averageAtCurrentHour: entry.averageAtCurrentHour,
@@ -349,15 +364,9 @@ struct DailyActiveEnergyWidget: Widget {
     let kind: String = "DailyActiveEnergyWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: EnergyWidgetProvider()) { entry in
-            if #available(iOS 17.0, *) {
-                DailyActiveEnergyWidgetEntryView(entry: entry)
-                    .containerBackground(Color(.systemBackground), for: .widget)
-            } else {
-                DailyActiveEnergyWidgetEntryView(entry: entry)
-                    .padding()
-                    .background(Color(.systemBackground))
-            }
+        AppIntentConfiguration(kind: kind, intent: EnergyWidgetConfigurationIntent.self, provider: EnergyWidgetProvider()) { entry in
+            DailyActiveEnergyWidgetEntryView(entry: entry)
+                .containerBackground(Color(.systemBackground), for: .widget)
         }
         .configurationDisplayName("Daily Active Energy")
         .description("Track your active energy compared to your 30-day average")
