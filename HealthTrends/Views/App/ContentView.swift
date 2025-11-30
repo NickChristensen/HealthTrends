@@ -22,45 +22,49 @@ struct ContentView: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                if healthKitManager.isAuthorized {
-                    // Medium Widget Preview
-                    WidgetPreviewContainer(family: .systemMedium, label: "Medium Widget") {
-                        EnergyTrendView(
-                            todayTotal: healthKitManager.todayTotal,
-                            averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
-                            todayHourlyData: healthKitManager.todayHourlyData,
-                            averageHourlyData: healthKitManager.averageHourlyData,
-                            moveGoal: healthKitManager.moveGoal,
-                            projectedTotal: healthKitManager.projectedTotal
-                        )
-                        .id(healthKitManager.refreshCount)
-                    }
+        ZStack {
+            Color("AppBackground")
+                .ignoresSafeArea()
 
-                    // Large Widget Preview
-                    WidgetPreviewContainer(family: .systemLarge, label: "Large Widget") {
-                        EnergyTrendView(
-                            todayTotal: healthKitManager.todayTotal,
-                            averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
-                            todayHourlyData: healthKitManager.todayHourlyData,
-                            averageHourlyData: healthKitManager.averageHourlyData,
-                            moveGoal: healthKitManager.moveGoal,
-                            projectedTotal: healthKitManager.projectedTotal
-                        )
-                        .id(healthKitManager.refreshCount)
+            ScrollView {
+                VStack(spacing: 32) {
+                    if healthKitManager.isAuthorized {
+                        // Medium Widget Preview
+                        WidgetPreviewContainer(family: .systemMedium, label: "Medium Widget") {
+                            EnergyTrendView(
+                                todayTotal: healthKitManager.todayTotal,
+                                averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
+                                todayHourlyData: healthKitManager.todayHourlyData,
+                                averageHourlyData: healthKitManager.averageHourlyData,
+                                moveGoal: healthKitManager.moveGoal,
+                                projectedTotal: healthKitManager.projectedTotal
+                            )
+                            .id(healthKitManager.refreshCount)
+                        }
+
+                        // Large Widget Preview
+                        WidgetPreviewContainer(family: .systemLarge, label: "Large Widget") {
+                            EnergyTrendView(
+                                todayTotal: healthKitManager.todayTotal,
+                                averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
+                                todayHourlyData: healthKitManager.todayHourlyData,
+                                averageHourlyData: healthKitManager.averageHourlyData,
+                                moveGoal: healthKitManager.moveGoal,
+                                projectedTotal: healthKitManager.projectedTotal
+                            )
+                            .id(healthKitManager.refreshCount)
+                        }
+                    } else if authorizationRequested {
+                        Text("⚠️ Waiting for authorization...")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text("Needs HealthKit access")
+                            .foregroundStyle(.secondary)
                     }
-                } else if authorizationRequested {
-                    Text("⚠️ Waiting for authorization...")
-                        .foregroundStyle(.orange)
-                } else {
-                    Text("Needs HealthKit access")
-                        .foregroundStyle(.secondary)
                 }
+                .padding()
             }
-            .padding()
         }
-        .background(Color("AppBackground"))
         #if targetEnvironment(simulator)
         .onShake {
             showingDevTools = true
@@ -75,7 +79,7 @@ struct ContentView: View {
                     .font(.system(size: 20))
             }
             .buttonStyle(.glass)
-            .padding()
+            .padding(.trailing)
         }
         #endif
         .onReceive(timer) { _ in
