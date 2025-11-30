@@ -9,6 +9,7 @@ import WidgetKit
 import SwiftUI
 import HealthKit
 import HealthTrendsShared
+import AppIntents
 
 // MARK: - Timeline Entry
 
@@ -332,14 +333,17 @@ struct DailyActiveEnergyWidgetEntryView: View {
     var entry: EnergyWidgetProvider.Entry
 
     var body: some View {
-        EnergyTrendView(
-            todayTotal: entry.todayTotal,
-            averageAtCurrentHour: entry.averageAtCurrentHour,
-            todayHourlyData: entry.todayHourlyData,
-            averageHourlyData: entry.averageHourlyData,
-            moveGoal: entry.moveGoal,
-            projectedTotal: entry.projectedTotal
-        )
+        Button(intent: RefreshWidgetIntent()) {
+            EnergyTrendView(
+                todayTotal: entry.todayTotal,
+                averageAtCurrentHour: entry.averageAtCurrentHour,
+                todayHourlyData: entry.todayHourlyData,
+                averageHourlyData: entry.averageHourlyData,
+                moveGoal: entry.moveGoal,
+                projectedTotal: entry.projectedTotal
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
