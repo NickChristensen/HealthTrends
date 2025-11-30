@@ -4,49 +4,65 @@ This guide explains how to check widget logs when running the Daily Active Energ
 
 ## Widget Logging Overview
 
-The widget logs errors when HealthKit queries fail. Look for lines starting with ❌ in the logs:
+The widget uses **persistent logging** via Apple's `Logger` framework. This means:
+- ✅ **Logs are saved to disk** on your iPhone
+- ✅ **Can be retrieved hours or days later** (don't need to be watching live)
+- ✅ **Survive device reboots** (for a limited time period)
 
-```
-❌ Widget FAILED to fetch today's HealthKit data at 2025-11-28 14:35:00
-❌ Error: <specific error details>
-❌ Error type: <error type>
-```
+**Log Types:**
+- **❌ Error logs:** HealthKit query failures
+- **⚠️ Warning logs:** Stale data detected (>30 minutes old)
+
+**Note:** Successful queries with fresh data are NOT logged to reduce noise. You'll only see logs when something is wrong.
 
 ---
 
-## Method 1: Xcode Console (Easiest while actively testing)
+## Method 1: Console App (RECOMMENDED for historical debugging)
 
-**Best for:** Real-time debugging while you have your phone connected
+**Best for:** Finding logs from hours or days ago when you notice stale data
 
 1. **Connect your iPhone** via USB to your Mac
-2. **Open Xcode** and go to **Window → Devices and Simulators**
+2. **Open Console.app** (`/Applications/Utilities/Console.app`)
+3. **Select your iPhone** in the left sidebar under "Devices"
+4. **DO NOT click "Start streaming"** - we want historical logs
+5. In the search box at the top, enter: `subsystem:com.finelycrafted.HealthTrends`
+6. **Set time range:** Click the clock icon and select "Last 24 hours" (or longer)
+7. Filter further by typing in search: `❌` (errors) or `⚠️` (warnings)
+
+**Key Predicates to Use:**
+```
+subsystem == "com.finelycrafted.HealthTrends" AND category == "DailyActiveEnergyWidget"
+```
+
+**To find stale data issues:**
+```
+subsystem == "com.finelycrafted.HealthTrends" AND message CONTAINS "stale"
+```
+
+**To find all errors:**
+```
+subsystem == "com.finelycrafted.HealthTrends" AND messageType == error
+```
+
+**Tips:**
+- **Time filter is critical** - use the clock icon to view logs from the past 24-48 hours
+- Logs persist for ~7 days on device (depending on storage)
+- You can save logs to a file: File → Save
+- No logs = everything is working normally (fresh data)
+
+---
+
+## Method 2: Xcode Console (For real-time debugging only)
+
+**Best for:** Watching logs live while testing
+
+1. **Connect your iPhone** via USB to your Mac
+2. **Open Xcode** → **Window → Devices and Simulators**
 3. **Select your iPhone** in the left sidebar
 4. Click **"Open Console"** button at the bottom
 5. In the filter box at the top, enter: `DailyActiveEnergyWidget`
-6. Look for lines with ❌ - those are the failure logs
 
-**Tips:**
-- Filter by process name or search for specific text like "FAILED"
-- The console auto-scrolls as new logs appear
-- Use Cmd+F to search within logs
-
----
-
-## Method 2: Console App (Best for reviewing logs later)
-
-**Best for:** Reviewing logs after the fact, or monitoring over longer periods
-
-1. **Open Console.app** on your Mac (in `/Applications/Utilities/`)
-2. **Connect your iPhone** via USB
-3. **Select your iPhone** in the left sidebar under "Devices"
-4. In the search box, enter: `process:DailyActiveEnergyWidget`
-5. Or search for: `❌` to see just failures
-6. **Optional:** Click "Start" to begin streaming live logs
-
-**Tips:**
-- You can save logs for later review using File → Save
-- Use predicates for advanced filtering: `subsystem == "com.finelycrafted.HealthTrends.DailyActiveEnergyWidgetExtension"`
-- Logs persist even after disconnecting the device (historical logs)
+**Note:** Xcode Console shows **live logs only** - not historical. Use Console.app for viewing past logs.
 
 ---
 
@@ -81,23 +97,37 @@ xcrun devicectl device logs stream --device "$DEVICE_ID" | grep "DailyActiveEner
 
 ## What to Look For
 
-### Success Case (No errors)
-If the widget is working correctly, you won't see any ❌ error logs. The widget will query HealthKit successfully every ~15 minutes.
+### Normal Operation (No Logs)
+**If you see NO logs, everything is working perfectly!** The widget only logs when:
+- HealthKit queries fail (❌ errors)
+- HealthKit returns stale data >30 minutes old (⚠️ warnings)
 
-### Failure Case (Errors present)
-If you see these patterns:
+**Silence is golden** - it means fresh data is being retrieved successfully.
 
+### Stale Data Warning
+If HealthKit returns data that's >30 minutes old, you'll see:
 ```
-❌ Widget FAILED to fetch today's HealthKit data at 2025-11-28 14:35:00
-❌ Error: Error Domain=com.apple.healthkit Code=4 "Protected data is unavailable"
+⚠️ Stale HealthKit data detected
+⚠️ Query time: 2025-11-30 14:35:00
+⚠️ Latest data point: 2025-11-30 13:00:00
+⚠️ Data age: 95 minutes (5700s)
+⚠️ Today total: 467 cal from 14 data points
+```
+
+**This is the key indicator for issue #14** - the widget successfully queries HealthKit, but HealthKit itself has stale data!
+
+### Failure Logs
+If HealthKit queries fail entirely:
+```
+❌ Widget FAILED to fetch today's HealthKit data at 2025-11-30 14:35:00
+❌ Error: Protected data is unavailable
 ❌ Error type: NSError
 ```
 
 **Common error codes:**
-- **Code 4 (Protected data unavailable):** Device is locked, HealthKit data encrypted
-- **Code 5 (Authorization not determined):** User hasn't granted permission yet
-- **Code 6 (Authorization denied):** User denied HealthKit access
-- **Missing NSHealthShareUsageDescription:** HealthKit queries fail silently
+- **Protected data unavailable:** Device is locked, HealthKit data encrypted
+- **Authorization not determined:** User hasn't granted permission yet
+- **Authorization denied:** User denied HealthKit access
 
 ### Widget Refresh Timeline
 
@@ -178,8 +208,38 @@ Widgets refresh automatically every ~15 minutes
 
 ---
 
+---
+
+## Investigating Issue #14: Intermittent Stale Data
+
+**Symptoms:** Widget shows stale data (hours old) even though the "now" time is recent.
+
+**How to diagnose:**
+
+1. **Let the app run for 24-48 hours** on your phone
+2. **When you notice stale data**, open Console.app
+3. **Filter logs from the past 24 hours:**
+   - Search: `subsystem:com.finelycrafted.HealthTrends`
+   - Time: Last 24 hours (or longer)
+4. **Look for patterns:**
+   - Are there ❌ errors? → HealthKit queries are failing
+   - Are there ⚠️ warnings about stale data? → HealthKit is returning old data (>30 min)
+   - Are there NO logs at all? → Queries work fine, but may need to check thresholds
+
+**Key question:** Are there stale data warnings (⚠️) when you notice stale widget data?
+
+```
+⚠️ Data age: 95 minutes (5700s)  ← Data is >30 minutes old!
+```
+
+If you see these warnings when widget data looks stale, **HealthKit itself has stale data** - not a widget issue.
+
+---
+
 ## Issue #12 Context
 
 This debugging guide was created while fixing issue #12, where the widget was showing stale data because HealthKit queries were failing silently. The root cause was missing `NSHealthShareUsageDescription` in the widget target's build settings.
 
 **Fix applied:** Added `INFOPLIST_KEY_NSHealthShareUsageDescription` to both Debug and Release build configurations for the DailyActiveEnergyWidgetExtension target.
+
+**Issue #14 Update:** Enhanced logging with persistent `Logger` to detect when HealthKit returns stale data vs when queries fail entirely.
