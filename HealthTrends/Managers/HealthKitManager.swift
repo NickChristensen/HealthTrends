@@ -40,24 +40,98 @@ final class HealthKitManager: ObservableObject {
         UserDefaults.standard.set(goal, forKey: moveGoalCacheKey)
     }
 
-    // Request authorization to read and write Active Energy data
+    // Request authorization to read Active Energy data
+    // Write authorization is requested separately when generating sample data
     func requestAuthorization() async throws {
         guard isHealthKitAvailable else {
             throw HealthKitError.notAvailable
         }
 
-        // Types we want to read and write
         let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
         let activitySummaryType = HKObjectType.activitySummaryType()
 
         let typesToRead: Set<HKObjectType> = [activeEnergyType, activitySummaryType]
+
+        // Only request read permissions (write requested separately when needed)
+        try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+
+        // Verify permission via query-based approach
+        // HealthKit privacy protections prevent us from knowing if read permission was granted,
+        // so we verify by attempting a minimal query
+        isAuthorized = await verifyReadAuthorization()
+    }
+
+    /// Verify read authorization by attempting a minimal HealthKit query
+    /// Returns true if samples found (permission likely granted), false if no samples (permission likely denied or no data)
+    /// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
+    /// they just return empty results. We use a heuristic: if user has any active energy data
+    /// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
+    private func verifyReadAuthorization() async -> Bool {
+        guard isHealthKitAvailable else {
+            return false
+        }
+
+        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+
+        // Query for samples from last 30 days (wider window to catch data)
+        let calendar = Calendar.current
+        let now = Date()
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
+            return false
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
+
+        do {
+            let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+                let query = HKSampleQuery(
+                    sampleType: activeEnergyType,
+                    predicate: predicate,
+                    limit: 1,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+                }
+                healthStore.execute(query)
+            }
+
+            // If we got any samples back, permission was likely granted
+            // If empty array, either permission denied OR user has no data
+            // We assume denied - conservative approach
+            let hasData = !samples.isEmpty
+            if !hasData {
+                print("Permission verification: No samples found - assuming permission denied or no data")
+            }
+            return hasData
+        } catch {
+            // Query errors are rare (only for system issues, not permission denial)
+            print("Permission verification query error: \(error)")
+            return false
+        }
+    }
+
+    /// Check current authorization status
+    /// Call when app returns from background to detect if user revoked permission
+    func checkAuthorizationStatus() async {
+        isAuthorized = await verifyReadAuthorization()
+    }
+
+    /// Request write authorization for development/testing purposes
+    /// Called on-demand when user generates sample data
+    func requestWriteAuthorization() async throws {
+        guard isHealthKitAvailable else {
+            throw HealthKitError.notAvailable
+        }
+
+        let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
         let typesToWrite: Set<HKSampleType> = [activeEnergyType]
 
-        try await healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead)
-
-        // For read-only permissions, HealthKit doesn't reveal if user granted access (privacy protection)
-        // We'll assume authorization completed successfully if no error was thrown
-        isAuthorized = true
+        // Request write permission only
+        try await healthStore.requestAuthorization(toShare: typesToWrite, read: [])
     }
 
     // Delete all existing Active Energy data
@@ -78,6 +152,9 @@ final class HealthKitManager: ObservableObject {
         guard isHealthKitAvailable else {
             throw HealthKitError.notAvailable
         }
+
+        // Request write permission before attempting to write
+        try await requestWriteAuthorization()
 
         // Clear existing data first to avoid duplicates
         try await clearSampleData()
