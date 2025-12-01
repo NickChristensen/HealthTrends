@@ -58,6 +58,9 @@ struct DevelopmentToolsSheet: View {
     @ObservedObject var healthKitManager: HealthKitManager
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showingPermissionError = false
+    @State private var permissionErrorMessage = ""
+
     var body: some View {
         NavigationView {
             List {
@@ -84,6 +87,8 @@ struct DevelopmentToolsSheet: View {
                         try await healthKitManager.fetchEnergyData()
                         try await healthKitManager.fetchMoveGoal()
                     } catch {
+                        permissionErrorMessage = "Write permission is required to generate sample data. Please allow access when prompted."
+                        showingPermissionError = true
                         print("Failed to generate sample data: \(error)")
                     }
                 }
@@ -110,6 +115,11 @@ struct DevelopmentToolsSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .alert("Permission Required", isPresented: $showingPermissionError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(permissionErrorMessage)
+        }
     }
 }
 

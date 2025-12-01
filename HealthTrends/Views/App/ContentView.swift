@@ -122,19 +122,25 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Refresh data when app comes to foreground
-            if newPhase == .active && healthKitManager.isAuthorized {
+            if newPhase == .active {
                 Task {
-                    try? await healthKitManager.fetchEnergyData()
+                    // Check if permission was revoked while backgrounded
+                    await healthKitManager.checkAuthorizationStatus()
 
-                    do {
-                        try await healthKitManager.fetchMoveGoal()
-                    } catch {
-                        print("Failed to fetch move goal (using cached): \(error)")
+                    // Only fetch data if authorized
+                    if healthKitManager.isAuthorized {
+                        try? await healthKitManager.fetchEnergyData()
+
+                        do {
+                            try await healthKitManager.fetchMoveGoal()
+                        } catch {
+                            print("Failed to fetch move goal (using cached): \(error)")
+                        }
+
+                        // Reload widgets when app is foregrounded
+                        // (doesn't count against budget when app is in foreground)
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
-
-                    // Reload widgets when app is foregrounded
-                    // (doesn't count against budget when app is in foreground)
-                    WidgetCenter.shared.reloadAllTimelines()
                 }
             }
         }
