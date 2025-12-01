@@ -6,61 +6,81 @@
 //
 
 import SwiftUI
-import Combine
-import WidgetKit
 
 struct ContentView: View {
     @StateObject private var healthKitManager = HealthKitManager()
-    @State private var authorizationRequested = false
-    @State private var lastRefreshMinute: Int = Calendar.current.component(.minute, from: Date())
-    @Environment(\.scenePhase) private var scenePhase
     @State private var showingDevTools = false
-
-    // Timer that checks every second for minute boundary changes
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var isRequestingAuthorization = false
 
     var body: some View {
         ZStack {
             Color("AppBackground")
                 .ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 32) {
-                    if healthKitManager.isAuthorized {
-                        // Medium Widget Preview
-                        WidgetPreviewContainer(family: .systemMedium, label: "Medium Widget") {
-                            EnergyTrendView(
-                                todayTotal: healthKitManager.todayTotal,
-                                averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
-                                todayHourlyData: healthKitManager.todayHourlyData,
-                                averageHourlyData: healthKitManager.averageHourlyData,
-                                moveGoal: healthKitManager.moveGoal,
-                                projectedTotal: healthKitManager.projectedTotal
-                            )
-                            .id(healthKitManager.refreshCount)
-                        }
+            VStack(spacing: 32) {
+                Spacer()
 
-                        // Large Widget Preview
-                        WidgetPreviewContainer(family: .systemLarge, label: "Large Widget") {
-                            EnergyTrendView(
-                                todayTotal: healthKitManager.todayTotal,
-                                averageAtCurrentHour: healthKitManager.averageAtCurrentHour,
-                                todayHourlyData: healthKitManager.todayHourlyData,
-                                averageHourlyData: healthKitManager.averageHourlyData,
-                                moveGoal: healthKitManager.moveGoal,
-                                projectedTotal: healthKitManager.projectedTotal
-                            )
-                            .id(healthKitManager.refreshCount)
+                // App Icon
+                Image("AppIconImage")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 128, height: 128)
+                VStack(spacing: 16) {
+                    Text("Health Trends")
+                        .font(.title)
+                        .fontWeight(.bold)
+
+                    Text("This app has no user interface. It provides widgets for your home screen. [Tap here](https://support.apple.com/en-us/118610) for help adding home screen widgets.")
+                        .tint(.accentColor) // optional: control link color
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                }
+
+                Spacer()
+
+                VStack(spacing: 24) {
+                    if !healthKitManager.isAuthorized {
+                        Button(action: {
+                            Task {
+                                isRequestingAuthorization = true
+                                do {
+                                    try await healthKitManager
+                                        .requestAuthorization()
+                                } catch {
+                                    print(
+                                        "HealthKit authorization error: \(error)"
+                                    )
+                                }
+                                isRequestingAuthorization = false
+                            }
+                        }) {
+                            HStack {
+                                if isRequestingAuthorization {
+                                    ProgressView()
+                                        .tint(Color(uiColor: .systemBackground))
+                                } else {
+                                    Text("Grant Health Access")
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.accentColor)
+                            .foregroundStyle(.background)
+                            .fontWeight(.semibold)
+                            .cornerRadius(12)
                         }
-                    } else if authorizationRequested {
-                        Text("⚠️ Waiting for authorization...")
-                            .foregroundStyle(.orange)
+                        .disabled(isRequestingAuthorization)
+                        .padding(.horizontal)
                     } else {
-                        Text("Needs HealthKit access")
-                            .foregroundStyle(.secondary)
+                        Color.clear
+                            .frame(height: 52)  // Match button height
+                            .padding(.horizontal)
+
                     }
                 }
-                .padding()
+                .padding(.bottom, 32)
             }
         }
         .onShake {
@@ -70,79 +90,19 @@ struct ContentView: View {
             DevelopmentToolsSheet(healthKitManager: healthKitManager)
         }
         #if targetEnvironment(simulator)
-        .overlay(alignment: .bottomTrailing) {
-            Button(action: { showingDevTools = true }) {
-                Image(systemName: "wrench.and.screwdriver")
+            .overlay(alignment: .bottomTrailing) {
+                Button(action: { showingDevTools = true }) {
+                    Image(systemName: "wrench.and.screwdriver")
                     .frame(width: 44, height: 44)
                     .font(.system(size: 20))
+                }
+                .buttonStyle(.glass)
+                .padding(.trailing)
             }
-            .buttonStyle(.glass)
-            .padding(.trailing)
-        }
         #endif
-        .onReceive(timer) { _ in
-            // Only refresh when we cross a minute boundary
-            let currentMinute = Calendar.current.component(.minute, from: Date())
-            guard currentMinute != lastRefreshMinute else { return }
-            lastRefreshMinute = currentMinute
-
-            // Refresh data at the start of each new minute
-            Task {
-                guard healthKitManager.isAuthorized else { return }
-                try? await healthKitManager.fetchEnergyData()
-
-                do {
-                    try await healthKitManager.fetchMoveGoal()
-                } catch {
-                    print("Failed to fetch move goal (using cached): \(error)")
-                }
-
-                // Reload widgets after updating data
-                // (doesn't count against budget when app is in foreground)
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-        }
         .task {
-            // Request HealthKit authorization when view appears
-            guard !authorizationRequested else { return }
-            authorizationRequested = true
-
-            do {
-                try await healthKitManager.requestAuthorization()
-
-                // Fetch data after authorization
-                try await healthKitManager.fetchEnergyData()
-                try await healthKitManager.fetchMoveGoal()
-
-                // Reload widgets with initial data
-                WidgetCenter.shared.reloadAllTimelines()
-            } catch {
-                print("HealthKit error: \(error)")
-            }
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            // Refresh data when app comes to foreground
-            if newPhase == .active {
-                Task {
-                    // Check if permission was revoked while backgrounded
-                    await healthKitManager.checkAuthorizationStatus()
-
-                    // Only fetch data if authorized
-                    if healthKitManager.isAuthorized {
-                        try? await healthKitManager.fetchEnergyData()
-
-                        do {
-                            try await healthKitManager.fetchMoveGoal()
-                        } catch {
-                            print("Failed to fetch move goal (using cached): \(error)")
-                        }
-
-                        // Reload widgets when app is foregrounded
-                        // (doesn't count against budget when app is in foreground)
-                        WidgetCenter.shared.reloadAllTimelines()
-                    }
-                }
-            }
+            // Check authorization status when view appears
+            await healthKitManager.checkAuthorizationStatus()
         }
     }
 }
