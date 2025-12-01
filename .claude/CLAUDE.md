@@ -20,6 +20,78 @@ Use these skills for deep-dive expertise when working on specific iOS topics:
 ## Development Environment
 - **Default Simulator**: Always use iPhone 17 Pro for builds and testing
 
+## Project Structure
+
+The project consists of three main targets with the following structure:
+
+### 1. Main App Target (`HealthTrends/`)
+```
+HealthTrends/
+├── HealthTrendsApp.swift              # App entry point (@main)
+├── Managers/
+│   └── HealthKitManager.swift         # App-level HealthKit state management (@Observable)
+├── Models/
+│   ├── HourlyEnergyData.swift         # App target's copy (for app-specific logic)
+│   └── SharedEnergyData.swift         # Data model for app/widget communication
+├── Views/
+│   ├── App/
+│   │   ├── ContentView.swift          # Main app view (NOT in root!)
+│   │   └── DevelopmentToolsSheet.swift
+│   └── Shared/
+│       ├── EnergyChartView.swift      # Swift Charts visualization
+│       ├── EnergyTrendView.swift      # Main trend display (chart + stats)
+│       └── HeaderStatistic.swift      # Reusable statistic component
+├── Utilities/
+│   ├── ShakeGesture.swift             # Debug shake gesture
+│   ├── TextMeasurement.swift          # Chart label collision detection
+│   └── WidgetPreviewContainer.swift   # Widget preview in app
+└── Assets.xcassets/                   # App-specific assets and colors
+```
+
+### 2. Widget Extension Target (`DailyActiveEnergyWidget/`)
+```
+DailyActiveEnergyWidget/
+├── DailyActiveEnergyWidgetBundle.swift  # Widget bundle definition
+├── DailyActiveEnergyWidget.swift        # Timeline provider & widget views
+├── RefreshWidgetIntent.swift            # App Intent for manual refresh
+├── WidgetConfigurationIntent.swift      # Widget configuration
+└── Assets.xcassets/                     # Widget-specific assets
+```
+
+### 3. Shared Swift Package (`HealthTrendsShared/`)
+**Purpose:** Code shared between app and widget (widget can't access app code directly)
+```
+HealthTrendsShared/
+├── Package.swift                        # SPM manifest
+└── Sources/HealthTrendsShared/
+    ├── HealthKitQueryService.swift      # HealthKit query logic (shared!)
+    ├── AverageDataCache.swift           # Caching for average calculations
+    └── HourlyEnergyData.swift           # Core data model (shared!)
+```
+
+### Key File Locations (Most Frequently Modified)
+
+**Widget timeline:** `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift`
+**Main app view:** `HealthTrends/Views/App/ContentView.swift` (NOT in root!)
+**Chart rendering:** `HealthTrends/Views/Shared/EnergyChartView.swift`
+**App HealthKit manager:** `HealthTrends/Managers/HealthKitManager.swift`
+**Development tools:** `HealthTrends/Views/App/DevelopmentToolsSheet.swift`
+**Trend display:** `HealthTrends/Views/Shared/EnergyTrendView.swift`
+**HealthKit queries (shared):** `HealthTrendsShared/Sources/HealthTrendsShared/HealthKitQueryService.swift`
+
+### Important Notes
+- **ContentView is NOT in `HealthTrends/ContentView.swift`** — it's nested in `Views/App/`
+- **Two copies of `HourlyEnergyData.swift`** exist:
+  - Shared version: `HealthTrendsShared/Sources/HealthTrendsShared/HourlyEnergyData.swift`
+  - App version: `HealthTrends/Models/HourlyEnergyData.swift`
+- **HealthKit queries** are centralized in the shared package, not scattered
+- **Widget uses shared package** for all HealthKit logic—don't duplicate code
+
+### Additional Resources
+- **Documentation:** `documentation/` contains data flow and widget debugging guides
+- **Design reference:** `design-reference/` has inspiration and mockups
+- **Xcode project:** `HealthTrends.xcodeproj/`
+
 ## iOS Development Practices
 
 ### Swift & SwiftUI Fundamentals
