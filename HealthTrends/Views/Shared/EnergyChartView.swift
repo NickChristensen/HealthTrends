@@ -276,7 +276,7 @@ struct EnergyChartView: View {
         // Single continuous line including current hour progress
         ForEach(todayHourlyData) { data in
             LineMark(x: .value("Hour", data.hour), y: .value("Calories", data.calories), series: .value("Series", "Today"))
-                .foregroundStyle(Color("ActiveEnergyColor"))
+                .foregroundStyle(Color.accentColor)
                 .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
                 .opacity(widgetRenderingMode.primaryOpacity)
         }
@@ -296,7 +296,7 @@ struct EnergyChartView: View {
         if let last = todayHourlyData.last {
             // Use NOW for x-position to align with average point and now line
             PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(pointHaloColor).symbolSize(256)
-            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(Color("ActiveEnergyColor")).symbolSize(100).opacity(widgetRenderingMode.primaryOpacity)
+            PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(Color.accentColor).symbolSize(100).opacity(widgetRenderingMode.primaryOpacity)
         }
     }
 

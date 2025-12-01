@@ -64,18 +64,6 @@ struct DevelopmentToolsSheet: View {
     var body: some View {
         NavigationView {
             List {
-                ActionButton(
-                    title: "Request Health Permissions",
-                    icon: "heart.text.clipboard",
-                ) {
-                    do {
-                        try await healthKitManager.requestAuthorization()
-                    } catch {
-                        print("Failed to request authorization: \(error)")
-                    }
-                }
-                .listRowBackground(Color(.systemBackground))
-
                 #if targetEnvironment(simulator)
                 ActionButton(
                     title: "Generate Sample Data",
