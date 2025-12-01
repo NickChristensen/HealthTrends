@@ -14,6 +14,52 @@ public final class HealthKitQueryService: Sendable {
 
     // MARK: - Public API
 
+    /// Check if HealthKit read authorization is likely granted
+    /// Returns true if samples found (permission likely granted), false if no samples (permission likely denied or no data)
+    /// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
+    /// they just return empty results. We use a heuristic: if user has any active energy data
+    /// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
+    public func checkReadAuthorization() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return false
+        }
+
+        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+
+        // Query for samples from last 30 days (wider window to catch data)
+        let now = Date()
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
+            return false
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
+
+        do {
+            let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+                let query = HKSampleQuery(
+                    sampleType: activeEnergyType,
+                    predicate: predicate,
+                    limit: 1,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+                }
+                healthStore.execute(query)
+            }
+
+            // If we got any samples back, permission was likely granted
+            // If empty array, either permission denied OR user has no data
+            return !samples.isEmpty
+        } catch {
+            // Query errors are rare (only for system issues, not permission denial)
+            return false
+        }
+    }
+
     /// Fetch today's hourly energy breakdown
     /// Returns cumulative calories at each hour boundary
     public func fetchTodayHourlyTotals() async throws -> [HourlyEnergyData] {

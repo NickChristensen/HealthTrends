@@ -67,51 +67,15 @@ final class HealthKitManager: ObservableObject {
     /// they just return empty results. We use a heuristic: if user has any active energy data
     /// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
     private func verifyReadAuthorization() async -> Bool {
-        guard isHealthKitAvailable else {
-            return false
+        // Use shared HealthKitQueryService for authorization check
+        let queryService = HealthKitQueryService(healthStore: healthStore)
+        let isAuthorized = await queryService.checkReadAuthorization()
+
+        if !isAuthorized {
+            print("Permission verification: No samples found - assuming permission denied or no data")
         }
 
-        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
-
-        // Query for samples from last 30 days (wider window to catch data)
-        let calendar = Calendar.current
-        let now = Date()
-        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
-            return false
-        }
-
-        let predicate = HKQuery.predicateForSamples(withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
-
-        do {
-            let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-                let query = HKSampleQuery(
-                    sampleType: activeEnergyType,
-                    predicate: predicate,
-                    limit: 1,
-                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-                ) { _, samples, error in
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                    continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-                }
-                healthStore.execute(query)
-            }
-
-            // If we got any samples back, permission was likely granted
-            // If empty array, either permission denied OR user has no data
-            // We assume denied - conservative approach
-            let hasData = !samples.isEmpty
-            if !hasData {
-                print("Permission verification: No samples found - assuming permission denied or no data")
-            }
-            return hasData
-        } catch {
-            // Query errors are rare (only for system issues, not permission denial)
-            print("Permission verification query error: \(error)")
-            return false
-        }
+        return isAuthorized
     }
 
     /// Check current authorization status
