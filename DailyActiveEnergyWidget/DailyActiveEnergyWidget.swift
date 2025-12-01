@@ -23,6 +23,7 @@ struct EnergyWidgetEntry: TimelineEntry {
     let todayHourlyData: [HourlyEnergyData]
     let averageHourlyData: [HourlyEnergyData]
     let configuration: EnergyWidgetConfigurationIntent
+    let isAuthorized: Bool
 
     /// Placeholder entry with sample data for widget gallery
     static var placeholder: EnergyWidgetEntry {
@@ -34,7 +35,8 @@ struct EnergyWidgetEntry: TimelineEntry {
             moveGoal: 800,
             todayHourlyData: generateSampleTodayData(),
             averageHourlyData: generateSampleAverageData(),
-            configuration: EnergyWidgetConfigurationIntent()
+            configuration: EnergyWidgetConfigurationIntent(),
+            isAuthorized: true
         )
     }
 
@@ -145,7 +147,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                 moveGoal: currentEntry.moveGoal,
                 averageHourlyData: currentEntry.averageHourlyData,
                 projectedTotal: currentEntry.projectedTotal,
-                configuration: configuration
+                configuration: configuration,
+                isAuthorized: currentEntry.isAuthorized
             )
             entries.append(midnightEntry)
 
@@ -171,7 +174,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
         moveGoal: Double,
         averageHourlyData: [HourlyEnergyData],
         projectedTotal: Double,
-        configuration: EnergyWidgetConfigurationIntent
+        configuration: EnergyWidgetConfigurationIntent,
+        isAuthorized: Bool
     ) -> EnergyWidgetEntry {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -184,7 +188,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
             moveGoal: moveGoal,  // Move goal doesn't change
             todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
             averageHourlyData: averageHourlyData,  // Keep average pattern for visual continuity
-            configuration: configuration
+            configuration: configuration,
+            isAuthorized: isAuthorized
         )
     }
 
@@ -192,6 +197,25 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
     private func loadFreshEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) async -> EnergyWidgetEntry {
         let healthKit = HealthKitQueryService()
         let cacheManager = AverageDataCacheManager()
+
+        // Check authorization status first
+        let isAuthorized = await healthKit.checkReadAuthorization()
+
+        // If not authorized, return early with unauthorized state
+        if !isAuthorized {
+            Self.logger.info("HealthKit authorization not granted - returning unauthorized state")
+            return EnergyWidgetEntry(
+                date: date,
+                todayTotal: 0,
+                averageAtCurrentHour: 0,
+                projectedTotal: 0,
+                moveGoal: loadCachedMoveGoal(),
+                todayHourlyData: [],
+                averageHourlyData: [],
+                configuration: configuration,
+                isAuthorized: false
+            )
+        }
 
         // Try to get fresh today's data from HealthKit
         let todayData: [HourlyEnergyData]
@@ -237,7 +261,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                     moveGoal: cachedEntry.moveGoal,
                     todayHourlyData: [HourlyEnergyData(hour: calendar.startOfDay(for: date), calories: 0)],
                     averageHourlyData: cachedEntry.averageHourlyData,
-                    configuration: configuration
+                    configuration: configuration,
+                    isAuthorized: true
                 )
             }
 
@@ -282,7 +307,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                         moveGoal: loadCachedMoveGoal(),
                         todayHourlyData: todayData,
                         averageHourlyData: [],
-                        configuration: configuration
+                        configuration: configuration,
+                        isAuthorized: true
                     )
                 }
             }
@@ -309,7 +335,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
             moveGoal: loadCachedMoveGoal(),
             todayHourlyData: todayData,
             averageHourlyData: averageData,
-            configuration: configuration
+            configuration: configuration,
+            isAuthorized: true
         )
     }
 
@@ -325,7 +352,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
                 moveGoal: sharedData.moveGoal,
                 todayHourlyData: sharedData.todayHourlyData.map { $0.toHourlyEnergyData() },
                 averageHourlyData: sharedData.averageHourlyData.map { $0.toHourlyEnergyData() },
-                configuration: configuration
+                configuration: configuration,
+                isAuthorized: true  // Cached data implies previous authorization
             )
         } catch {
             Self.logger.warning("Failed to load cached energy data: \(error.localizedDescription, privacy: .public)")
@@ -344,13 +372,45 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
     }
 }
 
+// MARK: - Empty State View
+
+struct WidgetUnauthorizedView: View {
+    @Environment(\.widgetFamily) var widgetFamily
+
+    var body: some View {
+        VStack(spacing: widgetFamily == .systemMedium ? 12 : 16) {
+            Image(systemName: "heart.text.square.fill")
+                .font(.system(size: widgetFamily == .systemMedium ? 40 : 60))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: widgetFamily == .systemMedium ? 6 : 8) {
+                Text("Health Access Required")
+                    .font(widgetFamily == .systemMedium ? .subheadline : .headline)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+
+                Text("Tap to open the app and grant Health access")
+                    .font(widgetFamily == .systemMedium ? .caption : .subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 // MARK: - Widget View
 
 struct DailyActiveEnergyWidgetEntryView: View {
     var entry: EnergyWidgetProvider.Entry
 
     var body: some View {
-        if entry.configuration.tapAction == .refresh {
+        // Show unauthorized view if not authorized
+        if !entry.isAuthorized {
+            WidgetUnauthorizedView()
+                .widgetURL(URL(string: "healthtrends://"))
+        } else if entry.configuration.tapAction == .refresh {
             // Tap to refresh - use AppIntent button
             Button(intent: RefreshWidgetIntent()) {
                 contentView
