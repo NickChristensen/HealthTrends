@@ -4,294 +4,324 @@ import HealthKit
 /// Shared HealthKit query service for use by both app and widget
 /// Provides efficient queries for energy data
 public final class HealthKitQueryService: Sendable {
-    private let healthStore: HKHealthStore
-    private let calendar: Calendar
+	private let healthStore: HKHealthStore
+	private let calendar: Calendar
 
-    public init(healthStore: HKHealthStore = HKHealthStore(), calendar: Calendar = .current) {
-        self.healthStore = healthStore
-        self.calendar = calendar
-    }
+	public init(healthStore: HKHealthStore = HKHealthStore(), calendar: Calendar = .current) {
+		self.healthStore = healthStore
+		self.calendar = calendar
+	}
 
-    // MARK: - Public API
+	// MARK: - Public API
 
-    /// Check if HealthKit read authorization is likely granted
-    /// Returns true if samples found (permission likely granted), false if no samples (permission likely denied or no data)
-    /// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
-    /// they just return empty results. We use a heuristic: if user has any active energy data
-    /// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
-    public func checkReadAuthorization() async -> Bool {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            return false
-        }
+	/// Check if HealthKit read authorization is likely granted
+	/// Returns true if samples found (permission likely granted), false if no samples (permission likely denied or no data)
+	/// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
+	/// they just return empty results. We use a heuristic: if user has any active energy data
+	/// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
+	public func checkReadAuthorization() async -> Bool {
+		guard HKHealthStore.isHealthDataAvailable() else {
+			return false
+		}
 
-        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 
-        // Query for samples from last 30 days (wider window to catch data)
-        let now = Date()
-        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
-            return false
-        }
+		// Query for samples from last 30 days (wider window to catch data)
+		let now = Date()
+		guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
+			return false
+		}
 
-        let predicate = HKQuery.predicateForSamples(withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
+		let predicate = HKQuery.predicateForSamples(
+			withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
 
-        do {
-            let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-                let query = HKSampleQuery(
-                    sampleType: activeEnergyType,
-                    predicate: predicate,
-                    limit: 1,
-                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
-                ) { _, samples, error in
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                    continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-                }
-                healthStore.execute(query)
-            }
+		do {
+			let samples = try await withCheckedThrowingContinuation {
+				(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+				let query = HKSampleQuery(
+					sampleType: activeEnergyType,
+					predicate: predicate,
+					limit: 1,
+					sortDescriptors: [
+						NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+					]
+				) { _, samples, error in
+					if let error = error {
+						continuation.resume(throwing: error)
+						return
+					}
+					continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+				}
+				healthStore.execute(query)
+			}
 
-            // If we got any samples back, permission was likely granted
-            // If empty array, either permission denied OR user has no data
-            return !samples.isEmpty
-        } catch {
-            // Query errors are rare (only for system issues, not permission denial)
-            return false
-        }
-    }
+			// If we got any samples back, permission was likely granted
+			// If empty array, either permission denied OR user has no data
+			return !samples.isEmpty
+		} catch {
+			// Query errors are rare (only for system issues, not permission denial)
+			return false
+		}
+	}
 
-    /// Fetch today's hourly energy breakdown
-    /// Returns cumulative calories at each hour boundary
-    public func fetchTodayHourlyTotals() async throws -> [HourlyEnergyData] {
-        let now = Date()
-        let startOfDay = calendar.startOfDay(for: now)
+	/// Fetch today's hourly energy breakdown
+	/// Returns cumulative calories at each hour boundary
+	public func fetchTodayHourlyTotals() async throws -> [HourlyEnergyData] {
+		let now = Date()
+		let startOfDay = calendar.startOfDay(for: now)
 
-        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 
-        // Fetch hourly data (non-cumulative)
-        let hourlyData = try await fetchHourlyData(from: startOfDay, to: now, type: activeEnergyType)
+		// Fetch hourly data (non-cumulative)
+		let hourlyData = try await fetchHourlyData(from: startOfDay, to: now, type: activeEnergyType)
 
-        let currentHourStart = calendar.dateInterval(of: .hour, for: now)!.start
+		let currentHourStart = calendar.dateInterval(of: .hour, for: now)!.start
 
-        // Filter out current incomplete hour for completed hours
-        let completeHours = hourlyData.filter { $0.hour < currentHourStart }
+		// Filter out current incomplete hour for completed hours
+		let completeHours = hourlyData.filter { $0.hour < currentHourStart }
 
-        // Convert to cumulative data (running sum)
-        var cumulativeData: [HourlyEnergyData] = []
+		// Convert to cumulative data (running sum)
+		var cumulativeData: [HourlyEnergyData] = []
 
-        // Start with 0 at midnight
-        cumulativeData.append(HourlyEnergyData(hour: startOfDay, calories: 0))
+		// Start with 0 at midnight
+		cumulativeData.append(HourlyEnergyData(hour: startOfDay, calories: 0))
 
-        var runningTotal: Double = 0
-        for data in completeHours.sorted(by: { $0.hour < $1.hour }) {
-            runningTotal += data.calories
-            // Use end of hour for timestamp
-            let timestamp = calendar.date(byAdding: .hour, value: 1, to: data.hour)!
-            cumulativeData.append(HourlyEnergyData(hour: timestamp, calories: runningTotal))
-        }
+		var runningTotal: Double = 0
+		for data in completeHours.sorted(by: { $0.hour < $1.hour }) {
+			runningTotal += data.calories
+			// Use end of hour for timestamp
+			let timestamp = calendar.date(byAdding: .hour, value: 1, to: data.hour)!
+			cumulativeData.append(HourlyEnergyData(hour: timestamp, calories: runningTotal))
+		}
 
-        // Add current hour progress (timestamp = current time, not end of hour)
-        let currentHourCalories = hourlyData.first(where: { $0.hour == currentHourStart })?.calories ?? 0
+		// Add current hour progress (timestamp = current time, not end of hour)
+		let currentHourCalories = hourlyData.first(where: { $0.hour == currentHourStart })?.calories ?? 0
 
-        if currentHourCalories > 0 {
-            let total = runningTotal + currentHourCalories
-            cumulativeData.append(HourlyEnergyData(hour: now, calories: total))
-        }
+		if currentHourCalories > 0 {
+			let total = runningTotal + currentHourCalories
+			cumulativeData.append(HourlyEnergyData(hour: now, calories: total))
+		}
 
-        return cumulativeData
-    }
+		return cumulativeData
+	}
 
-    /// Fetch average Active Energy data from past occurrences of the current weekday
-    /// Returns "Total" and "Average" (see CLAUDE.md)
-    /// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
-    public func fetchAverageData() async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
-        let now = Date()
-        let startOfToday = calendar.startOfDay(for: now)
+	/// Fetch average Active Energy data from past occurrences of the current weekday
+	/// Returns "Total" and "Average" (see CLAUDE.md)
+	/// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
+	public func fetchAverageData() async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+		let now = Date()
+		let startOfToday = calendar.startOfDay(for: now)
 
-        // Get current weekday
-        let todayWeekday = calendar.component(.weekday, from: startOfToday)
+		// Get current weekday
+		let todayWeekday = calendar.component(.weekday, from: startOfToday)
 
-        // Get data from 70 days ago to yesterday (ensures at least 10 occurrences of each weekday)
-        guard let seventyDaysAgo = calendar.date(byAdding: .day, value: -70, to: startOfToday),
-              let yesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday) else {
-            return (0, [])
-        }
+		// Get data from 70 days ago to yesterday (ensures at least 10 occurrences of each weekday)
+		guard let seventyDaysAgo = calendar.date(byAdding: .day, value: -70, to: startOfToday),
+			let yesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday)
+		else {
+			return (0, [])
+		}
 
-        let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 
-        // Fetch daily totals for "Total" metric, filtered by weekday
-        let dailyTotals = try await fetchDailyTotals(from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
-        let projectedTotal = dailyTotals.isEmpty ? 0 : dailyTotals.reduce(0, +) / Double(dailyTotals.count)
+		// Fetch daily totals for "Total" metric, filtered by weekday
+		let dailyTotals = try await fetchDailyTotals(
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+		let projectedTotal = dailyTotals.isEmpty ? 0 : dailyTotals.reduce(0, +) / Double(dailyTotals.count)
 
-        // Fetch cumulative average hourly pattern, filtered by weekday
-        let averageHourlyData = try await fetchCumulativeAverageHourlyPattern(from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+		// Fetch cumulative average hourly pattern, filtered by weekday
+		let averageHourlyData = try await fetchCumulativeAverageHourlyPattern(
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
 
-        return (projectedTotal, averageHourlyData)
-    }
+		return (projectedTotal, averageHourlyData)
+	}
 
-    // MARK: - Private Helpers
+	// MARK: - Private Helpers
 
-    /// Fetch hourly data for a specific time range
-    private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws -> [HourlyEnergyData] {
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+	/// Fetch hourly data for a specific time range
+	private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws
+		-> [HourlyEnergyData]
+	{
+		let predicate = HKQuery.predicateForSamples(
+			withStart: startDate, end: endDate, options: .strictStartDate)
 
-        var hourlyTotals: [Date: Double] = [:]
+		var hourlyTotals: [Date: Double] = [:]
 
-        let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-            }
-            healthStore.execute(query)
-        }
+		let samples = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+			let query = HKSampleQuery(
+				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+				sortDescriptors: nil
+			) { _, samples, error in
+				if let error = error {
+					continuation.resume(throwing: error)
+					return
+				}
+				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+			}
+			healthStore.execute(query)
+		}
 
-        // Group by hour
-        for sample in samples {
-            let hourStart = calendar.dateInterval(of: .hour, for: sample.startDate)?.start ?? sample.startDate
-            let calories = sample.quantity.doubleValue(for: .kilocalorie())
-            hourlyTotals[hourStart, default: 0] += calories
-        }
+		// Group by hour
+		for sample in samples {
+			let hourStart =
+				calendar.dateInterval(of: .hour, for: sample.startDate)?.start ?? sample.startDate
+			let calories = sample.quantity.doubleValue(for: .kilocalorie())
+			hourlyTotals[hourStart, default: 0] += calories
+		}
 
-        // Convert to array and sort
-        return hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
-            .sorted { $0.hour < $1.hour }
-    }
+		// Convert to array and sort
+		return hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
+			.sorted { $0.hour < $1.hour }
+	}
 
-    /// Fetch daily totals for a date range
-    /// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
-    private func fetchDailyTotals(from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil) async throws -> [Double] {
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+	/// Fetch daily totals for a date range
+	/// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
+	private func fetchDailyTotals(
+		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
+	) async throws -> [Double] {
+		let predicate = HKQuery.predicateForSamples(
+			withStart: startDate, end: endDate, options: .strictStartDate)
 
-        var dailyTotals: [Date: Double] = [:]
+		var dailyTotals: [Date: Double] = [:]
 
-        let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-            }
-            healthStore.execute(query)
-        }
+		let samples = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+			let query = HKSampleQuery(
+				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+				sortDescriptors: nil
+			) { _, samples, error in
+				if let error = error {
+					continuation.resume(throwing: error)
+					return
+				}
+				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+			}
+			healthStore.execute(query)
+		}
 
-        // Group by day
-        for sample in samples {
-            let dayStart = calendar.startOfDay(for: sample.startDate)
+		// Group by day
+		for sample in samples {
+			let dayStart = calendar.startOfDay(for: sample.startDate)
 
-            // Filter by weekday if specified
-            if let filterWeekday = filterWeekday {
-                let weekday = calendar.component(.weekday, from: dayStart)
-                guard weekday == filterWeekday else { continue }
-            }
+			// Filter by weekday if specified
+			if let filterWeekday = filterWeekday {
+				let weekday = calendar.component(.weekday, from: dayStart)
+				guard weekday == filterWeekday else { continue }
+			}
 
-            let calories = sample.quantity.doubleValue(for: .kilocalorie())
-            dailyTotals[dayStart, default: 0] += calories
-        }
+			let calories = sample.quantity.doubleValue(for: .kilocalorie())
+			dailyTotals[dayStart, default: 0] += calories
+		}
 
-        return Array(dailyTotals.values)
-    }
+		return Array(dailyTotals.values)
+	}
 
-    /// Fetch cumulative average hourly pattern across multiple days
-    /// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
-    private func fetchCumulativeAverageHourlyPattern(from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil) async throws -> [HourlyEnergyData] {
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+	/// Fetch cumulative average hourly pattern across multiple days
+	/// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
+	private func fetchCumulativeAverageHourlyPattern(
+		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
+	) async throws -> [HourlyEnergyData] {
+		let predicate = HKQuery.predicateForSamples(
+			withStart: startDate, end: endDate, options: .strictStartDate)
 
-        let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-            }
-            healthStore.execute(query)
-        }
+		let samples = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+			let query = HKSampleQuery(
+				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+				sortDescriptors: nil
+			) { _, samples, error in
+				if let error = error {
+					continuation.resume(throwing: error)
+					return
+				}
+				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+			}
+			healthStore.execute(query)
+		}
 
-        // Group samples by day, then calculate cumulative totals for each day
-        var dailyCumulativeData: [Date: [Int: Double]] = [:] // [dayStart: [hour: cumulativeCalories]]
+		// Group samples by day, then calculate cumulative totals for each day
+		var dailyCumulativeData: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeCalories]]
 
-        for sample in samples {
-            let dayStart = calendar.startOfDay(for: sample.startDate)
+		for sample in samples {
+			let dayStart = calendar.startOfDay(for: sample.startDate)
 
-            // Filter by weekday if specified
-            if let filterWeekday = filterWeekday {
-                let weekday = calendar.component(.weekday, from: dayStart)
-                guard weekday == filterWeekday else { continue }
-            }
+			// Filter by weekday if specified
+			if let filterWeekday = filterWeekday {
+				let weekday = calendar.component(.weekday, from: dayStart)
+				guard weekday == filterWeekday else { continue }
+			}
 
-            let hour = calendar.component(.hour, from: sample.startDate)
-            let calories = sample.quantity.doubleValue(for: .kilocalorie())
+			let hour = calendar.component(.hour, from: sample.startDate)
+			let calories = sample.quantity.doubleValue(for: .kilocalorie())
 
-            if dailyCumulativeData[dayStart] == nil {
-                dailyCumulativeData[dayStart] = [:]
-            }
-            dailyCumulativeData[dayStart]![hour, default: 0] += calories
-        }
+			if dailyCumulativeData[dayStart] == nil {
+				dailyCumulativeData[dayStart] = [:]
+			}
+			dailyCumulativeData[dayStart]![hour, default: 0] += calories
+		}
 
-        // Convert each day's hourly data to cumulative
-        var dailyCumulative: [Date: [Int: Double]] = [:] // [dayStart: [hour: cumulativeTotalByHour]]
+		// Convert each day's hourly data to cumulative
+		var dailyCumulative: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeTotalByHour]]
 
-        for (dayStart, hourlyData) in dailyCumulativeData {
-            var runningTotal: Double = 0
-            var cumulativeByHour: [Int: Double] = [:]
+		for (dayStart, hourlyData) in dailyCumulativeData {
+			var runningTotal: Double = 0
+			var cumulativeByHour: [Int: Double] = [:]
 
-            // Sort hours and calculate cumulative
-            for hour in 0..<24 {
-                runningTotal += hourlyData[hour] ?? 0
-                cumulativeByHour[hour] = runningTotal
-            }
+			// Sort hours and calculate cumulative
+			for hour in 0..<24 {
+				runningTotal += hourlyData[hour] ?? 0
+				cumulativeByHour[hour] = runningTotal
+			}
 
-            dailyCumulative[dayStart] = cumulativeByHour
-        }
+			dailyCumulative[dayStart] = cumulativeByHour
+		}
 
-        // For each hour, average the cumulative totals across all days
-        var averageCumulativeByHour: [Int: Double] = [:]
+		// For each hour, average the cumulative totals across all days
+		var averageCumulativeByHour: [Int: Double] = [:]
 
-        for hour in 0..<24 {
-            var totalForHour: Double = 0
-            var count = 0
+		for hour in 0..<24 {
+			var totalForHour: Double = 0
+			var count = 0
 
-            for (_, cumulativeByHour) in dailyCumulative {
-                if let cumulativeAtHour = cumulativeByHour[hour], cumulativeAtHour > 0 {
-                    totalForHour += cumulativeAtHour
-                    count += 1
-                }
-            }
+			for (_, cumulativeByHour) in dailyCumulative {
+				if let cumulativeAtHour = cumulativeByHour[hour], cumulativeAtHour > 0 {
+					totalForHour += cumulativeAtHour
+					count += 1
+				}
+			}
 
-            averageCumulativeByHour[hour] = count > 0 ? totalForHour / Double(count) : 0
-        }
+			averageCumulativeByHour[hour] = count > 0 ? totalForHour / Double(count) : 0
+		}
 
-        // Convert to HourlyEnergyData
-        let now = Date()
-        let startOfToday = calendar.startOfDay(for: now)
-        let currentHour = calendar.component(.hour, from: now)
-        let currentMinute = calendar.component(.minute, from: now)
+		// Convert to HourlyEnergyData
+		let now = Date()
+		let startOfToday = calendar.startOfDay(for: now)
+		let currentHour = calendar.component(.hour, from: now)
+		let currentMinute = calendar.component(.minute, from: now)
 
-        var hourlyData: [HourlyEnergyData] = []
+		var hourlyData: [HourlyEnergyData] = []
 
-        // Start with 0 at midnight
-        hourlyData.append(HourlyEnergyData(hour: startOfToday, calories: 0))
+		// Start with 0 at midnight
+		hourlyData.append(HourlyEnergyData(hour: startOfToday, calories: 0))
 
-        // Timestamps represent END of hour
-        hourlyData.append(contentsOf: averageCumulativeByHour.map { hour, avgCumulative in
-            let hourDate = calendar.date(byAdding: .hour, value: hour + 1, to: startOfToday)!
-            return HourlyEnergyData(hour: hourDate, calories: avgCumulative)
-        }.sorted { $0.hour < $1.hour })
+		// Timestamps represent END of hour
+		hourlyData.append(
+			contentsOf: averageCumulativeByHour.map { hour, avgCumulative in
+				let hourDate = calendar.date(byAdding: .hour, value: hour + 1, to: startOfToday)!
+				return HourlyEnergyData(hour: hourDate, calories: avgCumulative)
+			}.sorted { $0.hour < $1.hour })
 
-        // Add interpolated NOW point for real-time average
-        let avgAtCurrentHour = averageCumulativeByHour[currentHour] ?? 0
-        let avgAtNextHour = averageCumulativeByHour[currentHour + 1] ?? avgAtCurrentHour
-        let interpolationFactor = Double(currentMinute) / 60.0
-        let avgAtNow = avgAtCurrentHour + (avgAtNextHour - avgAtCurrentHour) * interpolationFactor
+		// Add interpolated NOW point for real-time average
+		let avgAtCurrentHour = averageCumulativeByHour[currentHour] ?? 0
+		let avgAtNextHour = averageCumulativeByHour[currentHour + 1] ?? avgAtCurrentHour
+		let interpolationFactor = Double(currentMinute) / 60.0
+		let avgAtNow = avgAtCurrentHour + (avgAtNextHour - avgAtCurrentHour) * interpolationFactor
 
-        if avgAtNow > 0 {
-            hourlyData.append(HourlyEnergyData(hour: now, calories: avgAtNow))
-        }
+		if avgAtNow > 0 {
+			hourlyData.append(HourlyEnergyData(hour: now, calories: avgAtNow))
+		}
 
-        return hourlyData
-    }
+		return hourlyData
+	}
 }

@@ -2,18 +2,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "HealthTrendsShared",
-    platforms: [
-        .iOS(.v17)
-    ],
-    products: [
-        .library(
-            name: "HealthTrendsShared",
-            targets: ["HealthTrendsShared"])
-    ],
-    targets: [
-        .target(
-            name: "HealthTrendsShared",
-            dependencies: [])
-    ]
+	name: "HealthTrendsShared",
+	platforms: [
+		.iOS(.v17)
+	],
+	products: [
+		.library(
+			name: "HealthTrendsShared",
+			targets: ["HealthTrendsShared"])
+	],
+	targets: [
+		.target(
+			name: "HealthTrendsShared",
+			dependencies: [])
+	]
 )

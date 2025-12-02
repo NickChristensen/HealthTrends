@@ -23,8 +23,8 @@ import UIKit
 ///   // Use width for collision detection or positioning
 ///   ```
 func measureTextWidth(_ text: String, textStyle: UIFont.TextStyle) -> CGFloat {
-    let font = UIFont.preferredFont(forTextStyle: textStyle)
-    let attributes = [NSAttributedString.Key.font: font]
-    let size = (text as NSString).size(withAttributes: attributes)
-    return ceil(size.width)
+	let font = UIFont.preferredFont(forTextStyle: textStyle)
+	let attributes = [NSAttributedString.Key.font: font]
+	let size = (text as NSString).size(withAttributes: attributes)
+	return ceil(size.width)
 }

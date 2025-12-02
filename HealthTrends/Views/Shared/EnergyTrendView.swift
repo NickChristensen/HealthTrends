@@ -5,45 +5,54 @@ import WidgetKit
 /// Can be used in both main app and widgets
 /// Uses flexible height layout to adapt to container size
 struct EnergyTrendView: View {
-    let todayTotal: Double
-    let averageAtCurrentHour: Double
-    let todayHourlyData: [HourlyEnergyData]
-    let averageHourlyData: [HourlyEnergyData]
-    let moveGoal: Double
-    let projectedTotal: Double
+	let todayTotal: Double
+	let averageAtCurrentHour: Double
+	let todayHourlyData: [HourlyEnergyData]
+	let averageHourlyData: [HourlyEnergyData]
+	let moveGoal: Double
+	let projectedTotal: Double
 
-    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 
-    var body: some View {
-        GeometryReader { geometry in
-            let spacing = geometry.size.height > 300 ? 16.0 : 8.0
+	var body: some View {
+		GeometryReader { geometry in
+			let spacing = geometry.size.height > 300 ? 16.0 : 8.0
 
-            VStack(spacing: spacing) {
-                // Header with statistics (fixed height)
-                HStack(spacing: 0) {
-                    HeaderStatistic(label: "Today", statistic: todayTotal, color: Color("AccentColor"))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .opacity(widgetRenderingMode.primaryOpacity)
+			VStack(spacing: spacing) {
+				// Header with statistics (fixed height)
+				HStack(spacing: 0) {
+					HeaderStatistic(
+						label: "Today", statistic: todayTotal, color: Color("AccentColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.opacity(widgetRenderingMode.primaryOpacity)
 
-                    HeaderStatistic(label: "Average", statistic: averageAtCurrentHour, color: Color("AverageStatisticColor"))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .opacity(widgetRenderingMode.secondaryOpacity)
+					HeaderStatistic(
+						label: "Average", statistic: averageAtCurrentHour,
+						color: Color("AverageStatisticColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .center)
+					.opacity(widgetRenderingMode.secondaryOpacity)
 
-                    HeaderStatistic(label: "Total", statistic: projectedTotal, color: Color("TotalStatisticTextColor"), circleColor: Color("TotalStatisticCircleColor"))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .opacity(widgetRenderingMode.tertiaryOpacity)
-                }
-                .fixedSize(horizontal: false, vertical: true)
+					HeaderStatistic(
+						label: "Total", statistic: projectedTotal,
+						color: Color("TotalStatisticTextColor"),
+						circleColor: Color("TotalStatisticCircleColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .trailing)
+					.opacity(widgetRenderingMode.tertiaryOpacity)
+				}
+				.fixedSize(horizontal: false, vertical: true)
 
-                // Energy Trend Chart (flexible height - takes remaining space)
-                EnergyChartView(
-                    todayHourlyData: todayHourlyData,
-                    averageHourlyData: averageHourlyData,
-                    moveGoal: moveGoal,
-                    projectedTotal: projectedTotal
-                )
-                .frame(maxHeight: .infinity)
-            }
-        }
-    }
+				// Energy Trend Chart (flexible height - takes remaining space)
+				EnergyChartView(
+					todayHourlyData: todayHourlyData,
+					averageHourlyData: averageHourlyData,
+					moveGoal: moveGoal,
+					projectedTotal: projectedTotal
+				)
+				.frame(maxHeight: .infinity)
+			}
+		}
+	}
 }
