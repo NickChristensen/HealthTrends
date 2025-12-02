@@ -21,7 +21,7 @@ struct EnergyTrendView: View {
             VStack(spacing: spacing) {
                 // Header with statistics (fixed height)
                 HStack(spacing: 0) {
-                    HeaderStatistic(label: "Today", statistic: todayTotal, color: Color.accentColor)
+                    HeaderStatistic(label: "Today", statistic: todayTotal, color: Color("AccentColor"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(widgetRenderingMode.primaryOpacity)
 
