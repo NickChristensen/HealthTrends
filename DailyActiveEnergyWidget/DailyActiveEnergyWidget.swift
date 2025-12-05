@@ -461,15 +461,6 @@ struct DailyActiveEnergyWidgetEntryView: View {
 struct DailyActiveEnergyWidget: Widget {
 	let kind: String = "DailyActiveEnergyWidget"
 
-	/// Supported widget families - includes iPad-specific sizes
-	private var supportedFamilies: [WidgetFamily] {
-		if #available(iOSApplicationExtension 15.0, *) {
-			return [.systemMedium, .systemLarge, .systemExtraLarge]
-		} else {
-			return [.systemMedium, .systemLarge]
-		}
-	}
-
 	var body: some WidgetConfiguration {
 		AppIntentConfiguration(
 			kind: kind, intent: EnergyWidgetConfigurationIntent.self, provider: EnergyWidgetProvider()
@@ -479,7 +470,7 @@ struct DailyActiveEnergyWidget: Widget {
 		}
 		.configurationDisplayName("Daily Active Energy")
 		.description("Track your active energy compared to your recent average")
-		.supportedFamilies(supportedFamilies)
+		.supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
 	}
 }
 
