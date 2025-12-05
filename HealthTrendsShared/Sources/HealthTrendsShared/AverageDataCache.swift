@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Cached average energy data from matching weekday pattern (last ~10 occurrences)
 /// Refreshed once per day to minimize expensive HealthKit queries
@@ -50,6 +51,10 @@ public struct AverageDataCache: Codable, Sendable {
 public final class AverageDataCacheManager: Sendable {
 	private let appGroupIdentifier: String
 	private let fileName: String
+	private static let logger = Logger(
+		subsystem: "com.finelycrafted.HealthTrends",
+		category: "AverageDataCacheManager"
+	)
 
 	public init(
 		appGroupIdentifier: String = "group.com.healthtrends.shared",
@@ -82,12 +87,15 @@ public final class AverageDataCacheManager: Sendable {
 
 			// Return nil if stale
 			guard !cache.isStale else {
+				Self.logger.info(
+					"Average data cache is stale - cached at \(cache.cachedAt, privacy: .public)")
 				return nil
 			}
 
 			return cache
 		} catch {
-			print("Failed to load average data cache: \(error)")
+			Self.logger.error(
+				"Failed to load average data cache: \(error.localizedDescription, privacy: .public)")
 			return nil
 		}
 	}

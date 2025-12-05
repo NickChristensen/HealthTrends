@@ -129,6 +129,15 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let currentEntry = await loadFreshEntry(forDate: currentDate, configuration: configuration)
 		entries.append(currentEntry)
 
+		// Log authorization state for correlation
+		Self.logger.info("Widget timeline generated at \(currentDate, privacy: .public)")
+		Self.logger.info(
+			"   Authorization status: \(currentEntry.isAuthorized ? "✅ AUTHORIZED" : "❌ UNAUTHORIZED")")
+		Self.logger.info("   Today total: \(currentEntry.todayTotal, privacy: .public) kcal")
+		Self.logger.info(
+			"   Data points: today=\(currentEntry.todayHourlyData.count), average=\(currentEntry.averageHourlyData.count)"
+		)
+
 		// Calculate next refresh time - use guards for safety
 		guard let next15MinUpdate = calendar.date(byAdding: .minute, value: 15, to: currentDate) else {
 			// Fallback: simple timeline with current entry and default 15-min refresh
@@ -213,7 +222,24 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		// If not authorized, return early with unauthorized state
 		if !isAuthorized {
-			Self.logger.info("HealthKit authorization not granted - returning unauthorized state")
+			Self.logger.warning("⚠️ RETURNING UNAUTHORIZED STATE to widget timeline")
+			Self.logger.warning("   Timestamp: \(date, privacy: .public)")
+			Self.logger.warning("   Configuration: tapAction=\(configuration.tapAction.rawValue)")
+
+			// Check if we have cached data with authorization=true (indicates flip-flop)
+			let cachedEntry = loadCachedEntry(forDate: date, configuration: configuration)
+			if cachedEntry.isAuthorized {
+				Self.logger.warning(
+					"   ⚠️ FLIP-FLOP DETECTED: Cached entry shows authorized=true, but fresh check failed!"
+				)
+				Self.logger.warning("   Cached data timestamp: \(cachedEntry.date, privacy: .public)")
+				Self.logger.warning(
+					"   Cached today total: \(cachedEntry.todayTotal, privacy: .public) kcal")
+				Self.logger.warning(
+					"   This is likely a FALSE NEGATIVE - user granted permission but has no HealthKit data"
+				)
+			}
+
 			return EnergyWidgetEntry(
 				date: date,
 				todayTotal: 0,
@@ -255,18 +281,28 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		} catch {
 			Self.logger.error(
 				"❌ Widget FAILED to fetch today's HealthKit data at \(date, privacy: .public)")
-			Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
-			Self.logger.error("❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
+			Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
+			Self.logger.error("   Error type: \(String(describing: type(of: error)), privacy: .public)")
 
 			// Check if cached data is from a different day
 			let calendar = Calendar.current
 			let cachedEntry = loadCachedEntry(forDate: date, configuration: configuration)
 
+			Self.logger.info("Checking cached data as fallback...")
+			Self.logger.info("   Cached entry date: \(cachedEntry.date, privacy: .public)")
+			Self.logger.info("   Cached authorization: \(cachedEntry.isAuthorized ? "✅ true" : "❌ false")")
+			Self.logger.info("   Cached today total: \(cachedEntry.todayTotal, privacy: .public) kcal")
+			Self.logger.info(
+				"   Cached data points: today=\(cachedEntry.todayHourlyData.count), average=\(cachedEntry.averageHourlyData.count)"
+			)
+
 			// If cached data is from yesterday, return zero-state instead
 			if let lastDataPoint = cachedEntry.todayHourlyData.last,
 				!calendar.isDate(lastDataPoint.hour, inSameDayAs: date)
 			{
-				Self.logger.info("Cached data is from previous day - returning zero-state for new day")
+				Self.logger.info(
+					"   ⚠️ Cached data is from previous day - returning zero-state for new day")
+				Self.logger.info("   Last data point: \(lastDataPoint.hour, privacy: .public)")
 
 				return EnergyWidgetEntry(
 					date: date,
@@ -279,11 +315,13 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					],
 					averageHourlyData: cachedEntry.averageHourlyData,
 					configuration: configuration,
-					isAuthorized: true
+					isAuthorized: true  // Assume authorized if we had data yesterday
 				)
 			}
 
 			// Same day - safe to use cached data
+			Self.logger.info("   ✅ Using same-day cached data as fallback")
+			Self.logger.info("   Cache age: \(Int(date.timeIntervalSince(cachedEntry.date)/60)) minutes")
 			return cachedEntry
 		}
 
@@ -293,10 +331,16 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		if cacheManager.shouldRefresh() {
 			// Cache is stale or missing - refresh it
+			Self.logger.info("Average data cache is stale/missing - refreshing from HealthKit")
+
 			do {
 				let (total, hourlyData) = try await healthKit.fetchAverageData()
 				projectedTotal = total
 				averageData = hourlyData
+
+				Self.logger.info("✅ Successfully fetched average data")
+				Self.logger.info("   Projected total: \(total, privacy: .public) kcal")
+				Self.logger.info("   Hourly data points: \(hourlyData.count)")
 
 				// Save to cache for future use
 				let cache = AverageDataCache(
@@ -306,17 +350,31 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					cacheVersion: 1
 				)
 				try? cacheManager.save(cache)
+				Self.logger.info("   ✅ Saved average data to cache")
 			} catch {
 				Self.logger.error("❌ Widget FAILED to fetch average data at \(date, privacy: .public)")
-				Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 				Self.logger.error(
-					"❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
+					"   Error type: \(String(describing: type(of: error)), privacy: .public)")
+
 				// Try to use stale cache as fallback
 				if let staleCache = cacheManager.load() {
 					averageData = staleCache.toHourlyEnergyData()
 					projectedTotal = staleCache.projectedTotal
+					let cacheAge = date.timeIntervalSince(staleCache.cachedAt)
+
+					Self.logger.warning("   ⚠️ Using STALE cache as fallback")
+					Self.logger.warning(
+						"   Cache timestamp: \(staleCache.cachedAt, privacy: .public)")
+					Self.logger.warning(
+						"   Cache age: \(Int(cacheAge/3600)) hours (\(Int(cacheAge/60)) minutes)"
+					)
+					Self.logger.warning(
+						"   Projected total: \(projectedTotal, privacy: .public) kcal")
 				} else {
 					// No cache available - return today-only entry
+					Self.logger.error("   ❌ No stale cache available - returning today-only entry")
+
 					return EnergyWidgetEntry(
 						date: date,
 						todayTotal: todayTotal,
@@ -335,8 +393,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			if let cache = cacheManager.load() {
 				averageData = cache.toHourlyEnergyData()
 				projectedTotal = cache.projectedTotal
+				let cacheAge = date.timeIntervalSince(cache.cachedAt)
+
+				Self.logger.info("✅ Using fresh average data cache")
+				Self.logger.info("   Cache timestamp: \(cache.cachedAt, privacy: .public)")
+				Self.logger.info("   Cache age: \(Int(cacheAge/60)) minutes")
+				Self.logger.info("   Projected total: \(projectedTotal, privacy: .public) kcal")
 			} else {
 				// Shouldn't happen (shouldRefresh would return true), but handle gracefully
+				Self.logger.warning(
+					"⚠️ UNEXPECTED: shouldRefresh=false but no cache found - using empty average data"
+				)
 				averageData = []
 				projectedTotal = 0
 			}
