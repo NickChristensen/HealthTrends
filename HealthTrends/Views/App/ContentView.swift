@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ContentView: View {
+	@Environment(\.horizontalSizeClass) private var horizontalSizeClass
+	@Environment(\.verticalSizeClass) private var verticalSizeClass
 	@State private var healthKitManager = HealthKitManager()
 	@State private var showingDevTools = false
 	@State private var isRequestingAuthorization = false
@@ -24,7 +26,7 @@ struct ContentView: View {
 				Image("AppIconImage")
 					.resizable()
 					.aspectRatio(contentMode: .fit)
-					.frame(width: 128, height: 128)
+					.frame(width: appIconSize, height: appIconSize)
 				VStack(spacing: 16) {
 					Text("Health Trends")
 						.font(.title)
@@ -84,6 +86,7 @@ struct ContentView: View {
 				}
 				.padding(.bottom, 32)
 			}
+			.frame(maxWidth: 400)
 		}
 		.onShake {
 			showingDevTools = true
@@ -106,6 +109,12 @@ struct ContentView: View {
 			// Check authorization status when view appears
 			await healthKitManager.checkAuthorizationStatus()
 		}
+	}
+
+	private var appIconSize: CGFloat {
+		let isRegularWidth = horizontalSizeClass == .regular
+		let isRegularHeight = verticalSizeClass == .regular
+		return isRegularWidth && isRegularHeight ? 192 : 128
 	}
 }
 
