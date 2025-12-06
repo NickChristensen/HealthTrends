@@ -36,7 +36,7 @@ struct EnergyWidgetEntry: TimelineEntry {
 			todayHourlyData: generateSampleTodayData(),
 			averageHourlyData: generateSampleAverageData(),
 			configuration: EnergyWidgetConfigurationIntent(),
-			isAuthorized: true
+			isAuthorized: false  // Show unauthorized view until timeline generates
 		)
 	}
 

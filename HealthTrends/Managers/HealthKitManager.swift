@@ -52,38 +52,58 @@ final class HealthKitManager {
 
 		let typesToRead: Set<HKObjectType> = [activeEnergyType, activitySummaryType]
 
-		// Only request read permissions (write requested separately when needed)
+		// Request read permissions
 		try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
 
-		// Verify permission via query-based approach
-		// HealthKit privacy protections prevent us from knowing if read permission was granted,
-		// so we verify by attempting a minimal query
+		// Verify permission via hybrid approach (cache + query)
 		isAuthorized = await verifyReadAuthorization()
+
+		// If authorized, fetch data immediately to populate cache and show user data
+		if isAuthorized {
+			print("✅ Authorization verified - fetching initial data")
+			do {
+				try await fetchEnergyData()
+				print("✅ Initial data fetch successful")
+			} catch {
+				// Don't throw - authorization succeeded even if data fetch failed
+				// User might have no data yet, or device might be locked
+				print("⚠️ Initial data fetch failed (non-fatal): \(error.localizedDescription)")
+			}
+		}
 	}
 
-	/// Verify read authorization by checking for cached data
-	/// Cache existence indicates user granted permission at some point
-	/// This eliminates false negatives (permission granted but no activity data)
+	/// Verify read authorization using hybrid approach
+	/// Fast path: Check cache (instant verification if data was previously fetched)
+	/// Query path: Perform minimal HealthKit query to detect actual permission state
 	private func verifyReadAuthorization() async -> Bool {
+		// FAST PATH: Check cache first (existing behavior when it works)
 		do {
-			// Try to read SharedEnergyData cache
 			let _ = try SharedEnergyDataManager.shared.readEnergyData()
-			// Cache exists - permission granted
-			print("✅ Cache exists - authorization verified")
+			print("✅ Cache exists - authorization verified (fast path)")
 			return true
 		} catch SharedDataError.fileNotFound {
-			// No cache - permission never granted OR first run
-			print("⚠️ No cache found - assuming unauthorized (or first run)")
-			return false
+			// Cache doesn't exist - need to query HealthKit directly
+			print("⚠️ No cache found - checking HealthKit directly (query path)")
 		} catch SharedDataError.containerNotFound {
 			// App group configuration error
 			print("❌ App group container not found - configuration error")
 			return false
 		} catch {
-			// Other error (corruption, decode failure)
-			print("❌ Cache read error: \(error.localizedDescription)")
-			return false
+			// Other cache error (corruption, decode failure) - fall through to query
+			print("⚠️ Cache read error: \(error.localizedDescription) - trying query path")
 		}
+
+		// QUERY PATH: Use HealthKitQueryService to check permission
+		let queryService = HealthKitQueryService(healthStore: healthStore)
+		let isAuthorized = await queryService.checkReadAuthorization()
+
+		if isAuthorized {
+			print("✅ HealthKit query succeeded - permission granted")
+		} else {
+			print("❌ HealthKit query failed - permission likely denied or no data")
+		}
+
+		return isAuthorized
 	}
 
 	/// Check current authorization status
