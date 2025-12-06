@@ -131,6 +131,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		// Log authorization state for correlation
 		Self.logger.info("Widget timeline generated at \(currentDate, privacy: .public)")
+		Self.logger.info("   Entry timestamp (NOW marker): \(currentEntry.date, privacy: .public)")
 		Self.logger.info(
 			"   Authorization status: \(currentEntry.isAuthorized ? "✅ AUTHORIZED" : "❌ UNAUTHORIZED")")
 		Self.logger.info("   Today total: \(currentEntry.todayTotal, privacy: .public) kcal")
@@ -266,7 +267,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					Self.logger.info("   Today total: \(cache.todayTotal, privacy: .public) kcal")
 
 					return EnergyWidgetEntry(
-						date: date,
+						date: cache.lastUpdated,
 						todayTotal: cache.todayTotal,
 						averageAtCurrentHour: cache.averageAtCurrentHour,
 						projectedTotal: cache.projectedTotal,
@@ -286,7 +287,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						"   Projected total: \(cache.projectedTotal, privacy: .public) kcal")
 
 					return EnergyWidgetEntry(
-						date: date,
+						date: cache.lastUpdated,
 						todayTotal: 0,
 						averageAtCurrentHour: cache.averageAtCurrentHour,
 						projectedTotal: cache.projectedTotal,
@@ -396,9 +397,14 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				} else {
 					// No cache available - return today-only entry
 					Self.logger.error("   ❌ No stale cache available - returning today-only entry")
+					let effectiveDate = todayData.last?.hour ?? date
+					let timestampSource = todayData.last == nil ? "query time" : "latest today data"
+					Self.logger.error(
+						"   Entry timestamp: \(effectiveDate, privacy: .public) (\(timestampSource))"
+					)
 
 					return EnergyWidgetEntry(
-						date: date,
+						date: effectiveDate,
 						todayTotal: todayTotal,
 						averageAtCurrentHour: 0,
 						projectedTotal: 0,
@@ -432,10 +438,11 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		}
 
 		// Calculate interpolated average at current hour
-		let averageAtCurrentHour = averageData.interpolatedValue(at: date) ?? 0
+		let effectiveDate = todayData.last?.hour ?? date  // Align "now" with freshest data point
+		let averageAtCurrentHour = averageData.interpolatedValue(at: effectiveDate) ?? 0
 
 		return EnergyWidgetEntry(
-			date: date,
+			date: effectiveDate,
 			todayTotal: todayTotal,
 			averageAtCurrentHour: averageAtCurrentHour,
 			projectedTotal: projectedTotal,
@@ -454,7 +461,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		do {
 			let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
 			return EnergyWidgetEntry(
-				date: date,
+				date: sharedData.lastUpdated,
 				todayTotal: sharedData.todayTotal,
 				averageAtCurrentHour: sharedData.averageAtCurrentHour,
 				projectedTotal: sharedData.projectedTotal,
