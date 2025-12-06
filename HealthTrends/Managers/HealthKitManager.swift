@@ -64,6 +64,9 @@ final class HealthKitManager {
 			do {
 				try await fetchEnergyData()
 				print("✅ Initial data fetch successful")
+
+				// Populate all 7 weekday caches for complete widget fallback coverage
+				await populateWeekdayCaches()
 			} catch {
 				// Don't throw - authorization succeeded even if data fetch failed
 				// User might have no data yet, or device might be locked
@@ -248,14 +251,15 @@ final class HealthKitManager {
 			todayHourlyData: self.todayHourlyData
 		)
 
-		// Write average data to separate cache for widget (refreshed daily)
+		// Write average data to weekday-specific cache for widget (refreshed daily)
+		let weekday = Weekday.today
 		let cache = AverageDataCache(
 			averageHourlyPattern: self.averageHourlyData,
 			projectedTotal: self.projectedTotal,
 			cachedAt: Date(),
 			cacheVersion: 1
 		)
-		try? AverageDataCacheManager().save(cache)
+		try? AverageDataCacheManager().save(cache, for: weekday)
 
 		// Reload widget timelines to pick up fresh data
 		WidgetCenter.shared.reloadAllTimelines()
@@ -325,13 +329,15 @@ final class HealthKitManager {
 	// Fetch average Active Energy data from past occurrences of the current weekday
 	// Returns "Total" and "Average" (see CLAUDE.md)
 	// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
-	private func fetchAverageData() async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+	private func fetchAverageData(for weekday: Int? = nil) async throws -> (
+		total: Double, hourlyData: [HourlyEnergyData]
+	) {
 		let calendar = Calendar.current
 		let now = Date()
 		let startOfToday = calendar.startOfDay(for: now)
 
-		// Get current weekday
-		let todayWeekday = calendar.component(.weekday, from: startOfToday)
+		// Get current weekday (or use provided weekday)
+		let targetWeekday = weekday ?? calendar.component(.weekday, from: startOfToday)
 
 		// Get data from 70 days ago to yesterday (ensures at least 10 occurrences of each weekday)
 		guard let seventyDaysAgo = calendar.date(byAdding: .day, value: -70, to: startOfToday),
@@ -344,14 +350,50 @@ final class HealthKitManager {
 
 		// Fetch daily totals for "Total" metric (average of complete daily totals), filtered by weekday
 		let dailyTotals = try await fetchDailyTotals(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
 		let projectedTotal = dailyTotals.isEmpty ? 0 : dailyTotals.reduce(0, +) / Double(dailyTotals.count)
 
 		// Fetch cumulative average hourly pattern for "Average" metric, filtered by weekday
 		let averageHourlyData = try await fetchCumulativeAverageHourlyPattern(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
 
 		return (projectedTotal, averageHourlyData)
+	}
+
+	/// Populate weekday-specific average caches for all 7 weekdays
+	/// Called after initial authorization to ensure widget has fallback data for all weekdays
+	func populateWeekdayCaches() async {
+		print("📊 Populating weekday-specific average caches for all 7 weekdays...")
+
+		let cacheManager = AverageDataCacheManager()
+
+		// Populate caches for all 7 weekdays (1=Sunday through 7=Saturday)
+		for weekdayRawValue in 1...7 {
+			guard let weekday = Weekday(rawValue: weekdayRawValue) else { continue }
+
+			do {
+				// Fetch average data for this specific weekday
+				let (total, hourlyData) = try await fetchAverageData(for: weekdayRawValue)
+
+				// Save to weekday-specific cache
+				let cache = AverageDataCache(
+					averageHourlyPattern: hourlyData,
+					projectedTotal: total,
+					cachedAt: Date(),
+					cacheVersion: 1
+				)
+				try cacheManager.save(cache, for: weekday)
+
+				print(
+					"  ✅ Cached weekday \(weekdayRawValue): \(total) kcal projected, \(hourlyData.count) hourly points"
+				)
+			} catch {
+				print("  ⚠️ Failed to cache weekday \(weekdayRawValue): \(error.localizedDescription)")
+				// Continue with other weekdays even if one fails
+			}
+		}
+
+		print("✅ Weekday cache population complete")
 	}
 
 	// Fetch hourly data for a specific time range
