@@ -568,7 +568,7 @@ struct DailyActiveEnergyWidget: Widget {
 		}
 		.configurationDisplayName("Daily Active Energy")
 		.description("Track your active energy compared to your recent average")
-		.supportedFamilies([.systemMedium, .systemLarge])
+		.supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
 	}
 }
 
