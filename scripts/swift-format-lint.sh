@@ -9,9 +9,9 @@ if [ "${CONFIGURATION}" = "Debug" ] && [ "${ENABLE_PREVIEWS}" = "YES" ]; then
     exit 0
 fi
 
-# Check if swift-format is installed
-if ! command -v swift-format &> /dev/null; then
-    echo "warning: swift-format not installed. Install with: brew install swift-format"
+# Check if swift-format is available via Xcode
+if ! xcrun swift-format --version &> /dev/null; then
+    echo "warning: swift-format not available. Ensure Xcode Command Line Tools are installed."
     exit 0
 fi
 
@@ -26,4 +26,4 @@ SWIFT_FILES=$(find "${SRCROOT}" \
 
 # Run swift-format lint
 echo "Running swift-format lint..."
-swift-format lint --strict --parallel $SWIFT_FILES
+xcrun swift-format lint --strict --parallel $SWIFT_FILES
