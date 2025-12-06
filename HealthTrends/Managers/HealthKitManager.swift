@@ -61,21 +61,29 @@ final class HealthKitManager: ObservableObject {
 		isAuthorized = await verifyReadAuthorization()
 	}
 
-	/// Verify read authorization by attempting a minimal HealthKit query
-	/// Returns true if samples found (permission likely granted), false if no samples (permission likely denied or no data)
-	/// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
-	/// they just return empty results. We use a heuristic: if user has any active energy data
-	/// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
+	/// Verify read authorization by checking for cached data
+	/// Cache existence indicates user granted permission at some point
+	/// This eliminates false negatives (permission granted but no activity data)
 	private func verifyReadAuthorization() async -> Bool {
-		// Use shared HealthKitQueryService for authorization check
-		let queryService = HealthKitQueryService(healthStore: healthStore)
-		let isAuthorized = await queryService.checkReadAuthorization()
-
-		if !isAuthorized {
-			print("Permission verification: No samples found - assuming permission denied or no data")
+		do {
+			// Try to read SharedEnergyData cache
+			let _ = try SharedEnergyDataManager.shared.readEnergyData()
+			// Cache exists - permission granted
+			print("✅ Cache exists - authorization verified")
+			return true
+		} catch SharedDataError.fileNotFound {
+			// No cache - permission never granted OR first run
+			print("⚠️ No cache found - assuming unauthorized (or first run)")
+			return false
+		} catch SharedDataError.containerNotFound {
+			// App group configuration error
+			print("❌ App group container not found - configuration error")
+			return false
+		} catch {
+			// Other error (corruption, decode failure)
+			print("❌ Cache read error: \(error.localizedDescription)")
+			return false
 		}
-
-		return isAuthorized
 	}
 
 	/// Check current authorization status
