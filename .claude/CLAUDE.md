@@ -116,6 +116,31 @@ HealthTrendsShared/
 - Mark types `@MainActor` when they update UI (view models, observable objects)
 - Use `Task` for structured concurrency, avoid raw `DispatchQueue` unless necessary
 - Handle cancellation properly with `Task.isCancelled`
+- Eliminate excessive `DispatchQueue.main.async` calls in modern concurrency contexts
+- Remove unnecessary `@MainActor` annotations in new app projects (views are implicitly `@MainActor`)
+
+**Modern API Usage (iOS 17+):**
+- Replace deprecated `foregroundColor()` with `foregroundStyle()`
+- Switch `cornerRadius()` to `clipShape(.rect(cornerRadius:))` for advanced features
+- Avoid single-parameter `onChange()` modifier—use two parameters or none instead
+- Replace old `tabItem()` with the new `Tab` API for type-safe selection
+- Use actual `Button` instead of `onTapGesture()` (except when location/tap count matters)
+- Change `NavigationView` to `NavigationStack` (unless supporting iOS 15)
+- Switch `Task.sleep(nanoseconds:)` to `Task.sleep(for:)` with duration values
+- Replace `UIGraphicsImageRenderer` with `ImageRenderer` for SwiftUI rendering
+- Use `URL.documentsDirectory` instead of manual documents directory code
+
+**Navigation Patterns:**
+- Update inline `NavigationLink` in lists to `navigationDestination(for:)` pattern
+- Use `Button()` with inline syntax or `Label` instead of image-only buttons
+
+**Data & Formatting:**
+- Prefer type-safe number formatting over C-style `String(format:)` approaches
+- Be cautious with `@Attribute(.unique)` in SwiftData—incompatible with CloudKit
+
+**Code Simplification:**
+- Remove unnecessary `Array()` wrapper: use `ForEach(x.enumerated()...` directly
+- Reduce overuse of `fontWeight()` modifier—prefer semantic font styles
 
 > **For advanced SwiftUI** (custom view modifiers, GeometryReader techniques, animations, PreferenceKey/EnvironmentKey, performance profiling with Instruments): use the **`swiftui-advanced`** skill
 >
@@ -199,6 +224,8 @@ HealthTrendsShared/
 - Keep view files focused—one primary view per file
 - Extract reusable components to shared locations
 - Use extensions to organize protocol conformances
+- Avoid consolidating multiple types into single files to reduce build times
+- Split complex computed properties into separate SwiftUI views instead of inline definitions
 
 **App/Widget Code Sharing:**
 - **Shared Swift Package** (`HealthTrendsShared`): Models, query services, caching logic shared between app and widget

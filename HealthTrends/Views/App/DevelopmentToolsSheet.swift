@@ -24,7 +24,7 @@ struct ActionButton: View {
 				state = .completed
 
 				// Revert to original icon after 2 seconds
-				try? await Task.sleep(nanoseconds: 2_000_000_000)
+				try? await Task.sleep(for: .seconds(2))
 				state = .idle
 			}
 		}) {
@@ -55,14 +55,14 @@ struct ActionButton: View {
 
 /// Development tools sheet content (simulator only)
 struct DevelopmentToolsSheet: View {
-	@ObservedObject var healthKitManager: HealthKitManager
+	@Bindable var healthKitManager: HealthKitManager
 	@Environment(\.dismiss) private var dismiss
 
 	@State private var showingPermissionError = false
 	@State private var permissionErrorMessage = ""
 
 	var body: some View {
-		NavigationView {
+		NavigationStack {
 			List {
 				#if targetEnvironment(simulator)
 					ActionButton(

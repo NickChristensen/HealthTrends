@@ -1,22 +1,22 @@
-import Combine
 import Foundation
 import HealthKit
 import HealthTrendsShared
 import WidgetKit
 
 @MainActor
-final class HealthKitManager: ObservableObject {
+@Observable
+final class HealthKitManager {
 	private let healthStore = HKHealthStore()
 	private let moveGoalCacheKey = "cachedMoveGoal"
 
-	@Published var isAuthorized = false
-	@Published var todayTotal: Double = 0
-	@Published var averageAtCurrentHour: Double = 0  // Average cumulative calories BY current hour (see CLAUDE.md)
-	@Published var projectedTotal: Double = 0  // Average of complete daily totals (see CLAUDE.md)
-	@Published var moveGoal: Double = 0  // Daily Move goal from Fitness app
-	@Published var todayHourlyData: [HourlyEnergyData] = []
-	@Published var averageHourlyData: [HourlyEnergyData] = []
-	@Published private(set) var refreshCount: Int = 0  // Increments on each refresh to force UI updates
+	var isAuthorized = false
+	var todayTotal: Double = 0
+	var averageAtCurrentHour: Double = 0  // Average cumulative calories BY current hour (see CLAUDE.md)
+	var projectedTotal: Double = 0  // Average of complete daily totals (see CLAUDE.md)
+	var moveGoal: Double = 0  // Daily Move goal from Fitness app
+	var todayHourlyData: [HourlyEnergyData] = []
+	var averageHourlyData: [HourlyEnergyData] = []
+	private(set) var refreshCount: Int = 0  // Increments on each refresh to force UI updates
 
 	init() {
 		// Load cached move goal on initialization

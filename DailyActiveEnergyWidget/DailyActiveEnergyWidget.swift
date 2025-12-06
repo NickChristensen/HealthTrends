@@ -499,7 +499,7 @@ struct WidgetUnauthorizedView: View {
 	var body: some View {
 		VStack(spacing: widgetFamily == .systemMedium ? 12 : 16) {
 			Image(systemName: "heart.text.square.fill")
-				.font(.system(size: widgetFamily == .systemMedium ? 40 : 60))
+				.font(widgetFamily == .systemMedium ? .largeTitle : .system(size: 60))
 				.foregroundStyle(.secondary)
 
 			VStack(spacing: widgetFamily == .systemMedium ? 6 : 8) {

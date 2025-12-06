@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-	@StateObject private var healthKitManager = HealthKitManager()
+	@State private var healthKitManager = HealthKitManager()
 	@State private var showingDevTools = false
 	@State private var isRequestingAuthorization = false
 
@@ -71,7 +71,7 @@ struct ContentView: View {
 							.background(Color.accentColor)
 							.foregroundStyle(.background)
 							.fontWeight(.semibold)
-							.cornerRadius(12)
+							.clipShape(.rect(cornerRadius: 12))
 						}
 						.disabled(isRequestingAuthorization)
 						.padding(.horizontal)
@@ -96,7 +96,7 @@ struct ContentView: View {
 				Button(action: { showingDevTools = true }) {
 					Image(systemName: "wrench.and.screwdriver")
 					.frame(width: 44, height: 44)
-					.font(.system(size: 20))
+					.font(.title2)
 				}
 				.buttonStyle(.glass)
 				.padding(.trailing)
