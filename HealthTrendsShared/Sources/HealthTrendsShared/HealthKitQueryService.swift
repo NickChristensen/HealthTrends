@@ -201,6 +201,45 @@ public final class HealthKitQueryService: Sendable {
 		return (projectedTotal, averageHourlyData)
 	}
 
+	/// Fetch today's active energy goal from Activity Summary
+	/// iOS supports weekday-specific goals, so this must be queried fresh each day
+	/// Returns 0 if no goal is set or if running on simulator
+	public func fetchMoveGoal() async throws -> Double {
+		#if targetEnvironment(simulator)
+			// Simulator doesn't have Fitness app, return mock goal
+			return 800.0
+		#else
+			let now = Date()
+
+			// Create predicate for today's activity summary
+			var dateComponents = calendar.dateComponents([.year, .month, .day], from: now)
+			dateComponents.calendar = calendar
+
+			let predicate = HKQuery.predicateForActivitySummary(with: dateComponents)
+
+			let activitySummary = try await withCheckedThrowingContinuation {
+				(continuation: CheckedContinuation<HKActivitySummary?, Error>) in
+				let query = HKActivitySummaryQuery(predicate: predicate) { _, summaries, error in
+					if let error = error {
+						continuation.resume(throwing: error)
+						return
+					}
+					continuation.resume(returning: summaries?.first)
+				}
+				healthStore.execute(query)
+			}
+
+			// Extract the active energy burned goal
+			if let summary = activitySummary {
+				let goalInKilocalories = summary.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
+				return goalInKilocalories > 0 ? goalInKilocalories : 0
+			}
+
+			// No summary available - return 0
+			return 0
+		#endif
+	}
+
 	// MARK: - Private Helpers
 
 	/// Fetch hourly data for a specific time range

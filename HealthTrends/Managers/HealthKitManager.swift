@@ -206,6 +206,7 @@ final class HealthKitManager {
 
 		async let todayData = fetchTodayData()
 		async let averageData = fetchAverageData()
+		async let _ = fetchMoveGoal()  // Fetches and updates self.moveGoal as side effect
 
 		let (today, average) = try await (todayData, averageData)
 
@@ -241,50 +242,21 @@ final class HealthKitManager {
 	}
 
 	// Fetch Move goal from Activity Summary
+	// iOS supports weekday-specific goals, so this must be called regularly (not just once)
 	func fetchMoveGoal() async throws {
 		guard isHealthKitAvailable else {
 			throw HealthKitError.notAvailable
 		}
 
-		#if targetEnvironment(simulator)
-			// Simulator doesn't have Fitness app, use mock goal for development
-			let simulatorGoal = 800.0
-			self.moveGoal = simulatorGoal
-			cacheMoveGoal(simulatorGoal)
-		#else
-			let calendar = Calendar.current
-			let now = Date()
+		let queryService = HealthKitQueryService(healthStore: healthStore)
+		let goal = try await queryService.fetchMoveGoal()
 
-			// Create predicate for today's activity summary
-			var dateComponents = calendar.dateComponents([.year, .month, .day], from: now)
-			dateComponents.calendar = calendar
-
-			let predicate = HKQuery.predicateForActivitySummary(with: dateComponents)
-
-			let activitySummary = try await withCheckedThrowingContinuation {
-				(continuation: CheckedContinuation<HKActivitySummary?, Error>) in
-				let query = HKActivitySummaryQuery(predicate: predicate) { _, summaries, error in
-					if let error = error {
-						continuation.resume(throwing: error)
-						return
-					}
-					continuation.resume(returning: summaries?.first)
-				}
-				healthStore.execute(query)
-			}
-
-			// Extract the active energy burned goal
-			if let summary = activitySummary {
-				let goalInKilocalories = summary.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
-				// Only update if we got a valid goal
-				if goalInKilocalories > 0 {
-					self.moveGoal = goalInKilocalories
-					cacheMoveGoal(goalInKilocalories)
-				}
-				// If goal is 0 or invalid, keep cached value (don't overwrite)
-			}
-		// If no summary available, keep cached value (don't overwrite with 0)
-		#endif
+		// Only update if we got a valid goal (> 0)
+		if goal > 0 {
+			self.moveGoal = goal
+			cacheMoveGoal(goal)
+		}
+		// If goal is 0, keep cached value (don't overwrite with 0)
 	}
 
 	// Fetch today's Active Energy data

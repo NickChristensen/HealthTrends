@@ -203,7 +203,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			todayTotal: 0,  // Known: Today resets to 0 at midnight
 			averageAtCurrentHour: 0,  // At midnight, average is also 0
 			projectedTotal: projectedTotal,  // Keep yesterday's projected total for reference
-			moveGoal: moveGoal,  // Move goal doesn't change
+			moveGoal: moveGoal,  // Use previous goal; will be refreshed after midnight reload
 			todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
 			averageHourlyData: averageHourlyData,  // Keep average pattern for visual continuity
 			configuration: configuration,
@@ -218,17 +218,23 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let healthKit = HealthKitQueryService()
 		let cacheManager = AverageDataCacheManager()
 
-		// Try to get fresh today's data from HealthKit
+		// Try to get fresh today's data AND move goal from HealthKit
 		let todayData: [HourlyEnergyData]
 		let todayTotal: Double
+		let moveGoal: Double
 
 		do {
-			let hourlyTotals = try await healthKit.fetchTodayHourlyTotals()
-			todayData = hourlyTotals
-			todayTotal = hourlyTotals.last?.calories ?? 0
+			// Query both today's data and move goal in parallel
+			async let hourlyTotals = healthKit.fetchTodayHourlyTotals()
+			async let goalQuery = healthKit.fetchMoveGoal()
+
+			let (hourlyData, fetchedGoal) = try await (hourlyTotals, goalQuery)
+			todayData = hourlyData
+			todayTotal = hourlyData.last?.calories ?? 0
+			moveGoal = fetchedGoal > 0 ? fetchedGoal : loadCachedMoveGoal()
 
 			// Check data freshness - warn if older than 30 minutes
-			if let latestDataPoint = hourlyTotals.last {
+			if let latestDataPoint = hourlyData.last {
 				let dataAge = date.timeIntervalSince(latestDataPoint.hour)
 
 				// Warning if data is more than 30 minutes old
@@ -239,7 +245,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						"⚠️ Latest data point: \(latestDataPoint.hour, privacy: .public)")
 					Self.logger.warning("⚠️ Data age: \(Int(dataAge/60)) minutes (\(Int(dataAge))s)")
 					Self.logger.warning(
-						"⚠️ Today total: \(todayTotal) cal from \(hourlyTotals.count) data points"
+						"⚠️ Today total: \(todayTotal) cal from \(hourlyData.count) data points"
 					)
 				}
 			}
@@ -303,7 +309,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						todayTotal: 0,
 						averageAtCurrentHour: averageAtCurrentHour,
 						projectedTotal: projectedTotal,
-						moveGoal: todayCache.moveGoal,
+						moveGoal: todayCache.moveGoal,  // Use cached goal when query fails
 						todayHourlyData: [],  // Empty today data
 						averageHourlyData: averageHourlyData,
 						configuration: configuration,
@@ -319,7 +325,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					todayTotal: 0,
 					averageAtCurrentHour: 0,
 					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),
+					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
 					todayHourlyData: [],
 					averageHourlyData: [],
 					configuration: configuration,
@@ -334,7 +340,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					todayTotal: 0,
 					averageAtCurrentHour: 0,
 					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),
+					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
 					todayHourlyData: [],
 					averageHourlyData: [],
 					configuration: configuration,
@@ -349,7 +355,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					todayTotal: 0,
 					averageAtCurrentHour: 0,
 					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),
+					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
 					todayHourlyData: [],
 					averageHourlyData: [],
 					configuration: configuration,
@@ -456,7 +462,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			todayTotal: todayTotal,
 			averageAtCurrentHour: averageAtCurrentHour,
 			projectedTotal: projectedTotal,
-			moveGoal: loadCachedMoveGoal(),
+			moveGoal: moveGoal,  // Use fresh goal from HealthKit query
 			todayHourlyData: todayData,
 			averageHourlyData: averageData,
 			configuration: configuration,
