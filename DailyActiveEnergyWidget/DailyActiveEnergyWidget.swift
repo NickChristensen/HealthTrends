@@ -254,48 +254,58 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				Self.logger.info("   → Device locked (error code 6)")
 			}
 
-			// Try to read SharedEnergyData cache
+			// Try to read SharedEnergyData cache (today only)
 			do {
-				let cache = try SharedEnergyDataManager.shared.readEnergyData()
+				let todayCache = try SharedEnergyDataManager.shared.readEnergyData()
 				let calendar = Calendar.current
 
+				// Read average data from separate cache
+				let averageCache = cacheManager.load()
+				let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
+				let projectedTotal = averageCache?.projectedTotal ?? 0
+				let averageAtCurrentHour =
+					averageHourlyData.interpolatedValue(at: todayCache.lastUpdated) ?? 0
+
 				// Check if cache is from today
-				if calendar.isDate(cache.lastUpdated, inSameDayAs: date) {
-					// TODAY'S CACHE: Use full cached data
-					Self.logger.info("✅ Using today's cached data")
-					Self.logger.info("   Cache timestamp: \(cache.lastUpdated, privacy: .public)")
-					Self.logger.info("   Today total: \(cache.todayTotal, privacy: .public) kcal")
+				if calendar.isDate(todayCache.lastUpdated, inSameDayAs: date) {
+					// TODAY'S CACHE: Use cached today data + cached average data
+					Self.logger.info("✅ Using today's cached data + average cache")
+					Self.logger.info(
+						"   Today cache timestamp: \(todayCache.lastUpdated, privacy: .public)")
+					Self.logger.info(
+						"   Today total: \(todayCache.todayTotal, privacy: .public) kcal")
+					Self.logger.info(
+						"   Average cache: \(averageCache != nil ? "✅ available" : "❌ missing")"
+					)
 
 					return EnergyWidgetEntry(
-						date: cache.lastUpdated,
-						todayTotal: cache.todayTotal,
-						averageAtCurrentHour: cache.averageAtCurrentHour,
-						projectedTotal: cache.projectedTotal,
-						moveGoal: cache.moveGoal,
-						todayHourlyData: cache.todayHourlyData.map { $0.toHourlyEnergyData() },
-						averageHourlyData: cache.averageHourlyData.map {
+						date: todayCache.lastUpdated,
+						todayTotal: todayCache.todayTotal,
+						averageAtCurrentHour: averageAtCurrentHour,
+						projectedTotal: projectedTotal,
+						moveGoal: todayCache.moveGoal,
+						todayHourlyData: todayCache.todayHourlyData.map {
 							$0.toHourlyEnergyData()
 						},
+						averageHourlyData: averageHourlyData,
 						configuration: configuration,
 						isAuthorized: true  // Cache exists = authorized
 					)
 				} else {
 					// YESTERDAY'S CACHE: Show average data with empty today
 					Self.logger.info("⚠️ Using yesterday's cache - showing average only")
-					Self.logger.info("   Cache timestamp: \(cache.lastUpdated, privacy: .public)")
 					Self.logger.info(
-						"   Projected total: \(cache.projectedTotal, privacy: .public) kcal")
+						"   Today cache timestamp: \(todayCache.lastUpdated, privacy: .public)")
+					Self.logger.info("   Projected total: \(projectedTotal, privacy: .public) kcal")
 
 					return EnergyWidgetEntry(
-						date: cache.lastUpdated,
+						date: todayCache.lastUpdated,
 						todayTotal: 0,
-						averageAtCurrentHour: cache.averageAtCurrentHour,
-						projectedTotal: cache.projectedTotal,
-						moveGoal: cache.moveGoal,
+						averageAtCurrentHour: averageAtCurrentHour,
+						projectedTotal: projectedTotal,
+						moveGoal: todayCache.moveGoal,
 						todayHourlyData: [],  // Empty today data
-						averageHourlyData: cache.averageHourlyData.map {
-							$0.toHourlyEnergyData()
-						},
+						averageHourlyData: averageHourlyData,
 						configuration: configuration,
 						isAuthorized: true  // Cache exists = authorized
 					)
@@ -454,20 +464,28 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		)
 	}
 
-	/// Load cached entry from shared container (fallback)
+	/// Load cached entry from shared container (for widget gallery)
 	private func loadCachedEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent)
 		-> EnergyWidgetEntry
 	{
 		do {
-			let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
+			let todayCache = try SharedEnergyDataManager.shared.readEnergyData()
+
+			// Read average data from separate cache
+			let cacheManager = AverageDataCacheManager()
+			let averageCache = cacheManager.load()
+			let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
+			let projectedTotal = averageCache?.projectedTotal ?? 0
+			let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: todayCache.lastUpdated) ?? 0
+
 			return EnergyWidgetEntry(
-				date: sharedData.lastUpdated,
-				todayTotal: sharedData.todayTotal,
-				averageAtCurrentHour: sharedData.averageAtCurrentHour,
-				projectedTotal: sharedData.projectedTotal,
-				moveGoal: sharedData.moveGoal,
-				todayHourlyData: sharedData.todayHourlyData.map { $0.toHourlyEnergyData() },
-				averageHourlyData: sharedData.averageHourlyData.map { $0.toHourlyEnergyData() },
+				date: todayCache.lastUpdated,
+				todayTotal: todayCache.todayTotal,
+				averageAtCurrentHour: averageAtCurrentHour,
+				projectedTotal: projectedTotal,
+				moveGoal: todayCache.moveGoal,
+				todayHourlyData: todayCache.todayHourlyData.map { $0.toHourlyEnergyData() },
+				averageHourlyData: averageHourlyData,
 				configuration: configuration,
 				isAuthorized: true  // Cached data implies previous authorization
 			)

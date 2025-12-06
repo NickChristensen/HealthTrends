@@ -220,17 +220,14 @@ final class HealthKitManager {
 		// Increment refresh counter to force UI redraw (updates NOW label even if data unchanged)
 		self.refreshCount += 1
 
-		// Write data to shared container for widget access (fallback)
+		// Write today's data to shared container for widget fallback
 		try? SharedEnergyDataManager.shared.writeEnergyData(
 			todayTotal: self.todayTotal,
-			averageAtCurrentHour: self.averageAtCurrentHour,
-			projectedTotal: self.projectedTotal,
 			moveGoal: self.moveGoal,
-			todayHourlyData: self.todayHourlyData,
-			averageHourlyData: self.averageHourlyData
+			todayHourlyData: self.todayHourlyData
 		)
 
-		// Write average data to cache for widget to use
+		// Write average data to separate cache for widget (refreshed daily)
 		let cache = AverageDataCache(
 			averageHourlyPattern: self.averageHourlyData,
 			projectedTotal: self.projectedTotal,
