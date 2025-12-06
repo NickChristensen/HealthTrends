@@ -4,11 +4,8 @@ import HealthTrendsShared
 /// Shared data structure for communicating energy data between the app and widget
 struct SharedEnergyData: Codable {
 	let todayTotal: Double
-	let averageAtCurrentHour: Double
-	let projectedTotal: Double
 	let moveGoal: Double
 	let todayHourlyData: [SerializableHourlyEnergyData]
-	let averageHourlyData: [SerializableHourlyEnergyData]
 	let lastUpdated: Date
 
 	/// Codable version of HourlyEnergyData
@@ -49,11 +46,8 @@ final class SharedEnergyDataManager {
 	/// Write energy data to shared container
 	func writeEnergyData(
 		todayTotal: Double,
-		averageAtCurrentHour: Double,
-		projectedTotal: Double,
 		moveGoal: Double,
-		todayHourlyData: [HourlyEnergyData],
-		averageHourlyData: [HourlyEnergyData]
+		todayHourlyData: [HourlyEnergyData]
 	) throws {
 		guard let fileURL = fileURL else {
 			throw SharedDataError.containerNotFound
@@ -61,11 +55,8 @@ final class SharedEnergyDataManager {
 
 		let sharedData = SharedEnergyData(
 			todayTotal: todayTotal,
-			averageAtCurrentHour: averageAtCurrentHour,
-			projectedTotal: projectedTotal,
 			moveGoal: moveGoal,
 			todayHourlyData: todayHourlyData.map { .init(from: $0) },
-			averageHourlyData: averageHourlyData.map { .init(from: $0) },
 			lastUpdated: Date()
 		)
 
