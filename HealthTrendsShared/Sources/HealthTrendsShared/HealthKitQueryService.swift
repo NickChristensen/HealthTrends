@@ -173,12 +173,14 @@ public final class HealthKitQueryService: Sendable {
 	/// Fetch average Active Energy data from past occurrences of the current weekday
 	/// Returns "Total" and "Average" (see CLAUDE.md)
 	/// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
-	public func fetchAverageData() async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+	public func fetchAverageData(for weekday: Int? = nil) async throws -> (
+		total: Double, hourlyData: [HourlyEnergyData]
+	) {
 		let now = Date()
 		let startOfToday = calendar.startOfDay(for: now)
 
-		// Get current weekday
-		let todayWeekday = calendar.component(.weekday, from: startOfToday)
+		// Get current weekday (or use provided weekday)
+		let targetWeekday = weekday ?? calendar.component(.weekday, from: startOfToday)
 
 		// Get data from 70 days ago to yesterday (ensures at least 10 occurrences of each weekday)
 		guard let seventyDaysAgo = calendar.date(byAdding: .day, value: -70, to: startOfToday),
@@ -191,12 +193,12 @@ public final class HealthKitQueryService: Sendable {
 
 		// Fetch daily totals for "Total" metric, filtered by weekday
 		let dailyTotals = try await fetchDailyTotals(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
 		let projectedTotal = dailyTotals.isEmpty ? 0 : dailyTotals.reduce(0, +) / Double(dailyTotals.count)
 
 		// Fetch cumulative average hourly pattern, filtered by weekday
 		let averageHourlyData = try await fetchCumulativeAverageHourlyPattern(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: todayWeekday)
+			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
 
 		return (projectedTotal, averageHourlyData)
 	}
