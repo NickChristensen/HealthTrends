@@ -1,11 +1,16 @@
 import Foundation
 import HealthKit
+import os
 
 /// Shared HealthKit query service for use by both app and widget
 /// Provides efficient queries for energy data
 public final class HealthKitQueryService: Sendable {
 	private let healthStore: HKHealthStore
 	private let calendar: Calendar
+	private static let logger = Logger(
+		subsystem: "com.finelycrafted.HealthTrends",
+		category: "HealthKitQueryService"
+	)
 
 	public init(healthStore: HKHealthStore = HKHealthStore(), calendar: Calendar = .current) {
 		self.healthStore = healthStore
@@ -20,7 +25,11 @@ public final class HealthKitQueryService: Sendable {
 	/// they just return empty results. We use a heuristic: if user has any active energy data
 	/// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
 	public func checkReadAuthorization() async -> Bool {
+		let queryStartTime = Date()
+
 		guard HKHealthStore.isHealthDataAvailable() else {
+			Self.logger.warning(
+				"HealthKit not available on this device (watchOS/iPad without health support)")
 			return false
 		}
 
@@ -29,8 +38,13 @@ public final class HealthKitQueryService: Sendable {
 		// Query for samples from last 30 days (wider window to catch data)
 		let now = Date()
 		guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) else {
+			Self.logger.error("Failed to calculate date 30 days ago - calendar computation error")
 			return false
 		}
+
+		Self.logger.info(
+			"Starting authorization check: querying last 30 days (\(thirtyDaysAgo, privacy: .public) to \(now, privacy: .public))"
+		)
 
 		let predicate = HKQuery.predicateForSamples(
 			withStart: thirtyDaysAgo, end: now, options: .strictStartDate)
@@ -55,11 +69,62 @@ public final class HealthKitQueryService: Sendable {
 				healthStore.execute(query)
 			}
 
-			// If we got any samples back, permission was likely granted
-			// If empty array, either permission denied OR user has no data
-			return !samples.isEmpty
+			let queryDuration = Date().timeIntervalSince(queryStartTime)
+			let sampleCount = samples.count
+
+			if sampleCount > 0 {
+				// Authorization likely granted
+				let latestSample = samples[0]
+				let sampleDate = latestSample.startDate
+				let sampleAge = now.timeIntervalSince(sampleDate)
+				let calories = latestSample.quantity.doubleValue(for: .kilocalorie())
+
+				Self.logger.info(
+					"✅ Authorization check PASSED: found \(sampleCount) sample(s) in last 30 days")
+				Self.logger.info("   Query duration: \(Int(queryDuration * 1000))ms")
+				Self.logger.info(
+					"   Latest sample: \(sampleDate, privacy: .public) (\(Int(sampleAge/3600))h ago, \(calories, privacy: .public) kcal)"
+				)
+				return true
+			} else {
+				// No samples found - either unauthorized OR user has no data
+				Self.logger.warning("⚠️ Authorization check FAILED: no samples found in last 30 days")
+				Self.logger.warning("   Query duration: \(Int(queryDuration * 1000))ms")
+				Self.logger.warning(
+					"   Date range: \(thirtyDaysAgo, privacy: .public) to \(now, privacy: .public)")
+				Self.logger.warning(
+					"   ⚠️ FALSE NEGATIVE POSSIBLE: User may have granted permission but has no data!"
+				)
+				Self.logger.warning(
+					"   Recommendation: Check HealthKit authorization status in Settings > Privacy > Health"
+				)
+				return false
+			}
 		} catch {
-			// Query errors are rare (only for system issues, not permission denial)
+			let queryDuration = Date().timeIntervalSince(queryStartTime)
+
+			Self.logger.error(
+				"❌ Authorization check FAILED with error after \(Int(queryDuration * 1000))ms")
+			Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
+			Self.logger.error("   Error type: \(String(describing: type(of: error)), privacy: .public)")
+
+			// Check for specific error types
+			let nsError = error as NSError
+			Self.logger.error("   Error domain: \(nsError.domain, privacy: .public)")
+			Self.logger.error("   Error code: \(nsError.code)")
+
+			if nsError.domain == "com.apple.healthkit" {
+				switch nsError.code {
+				case 5:  // HKErrorAuthorizationNotDetermined
+					Self.logger.error(
+						"   → Authorization not determined (user hasn't granted permission)")
+				case 6:  // HKErrorAuthorizationDenied
+					Self.logger.error("   → Authorization explicitly denied by user")
+				default:
+					Self.logger.error("   → Unknown HealthKit error code: \(nsError.code)")
+				}
+			}
+
 			return false
 		}
 	}

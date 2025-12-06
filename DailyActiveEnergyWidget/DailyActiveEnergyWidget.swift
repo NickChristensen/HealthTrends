@@ -129,6 +129,15 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let currentEntry = await loadFreshEntry(forDate: currentDate, configuration: configuration)
 		entries.append(currentEntry)
 
+		// Log authorization state for correlation
+		Self.logger.info("Widget timeline generated at \(currentDate, privacy: .public)")
+		Self.logger.info(
+			"   Authorization status: \(currentEntry.isAuthorized ? "✅ AUTHORIZED" : "❌ UNAUTHORIZED")")
+		Self.logger.info("   Today total: \(currentEntry.todayTotal, privacy: .public) kcal")
+		Self.logger.info(
+			"   Data points: today=\(currentEntry.todayHourlyData.count), average=\(currentEntry.averageHourlyData.count)"
+		)
+
 		// Calculate next refresh time - use guards for safety
 		guard let next15MinUpdate = calendar.date(byAdding: .minute, value: 15, to: currentDate) else {
 			// Fallback: simple timeline with current entry and default 15-min refresh
@@ -208,25 +217,6 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let healthKit = HealthKitQueryService()
 		let cacheManager = AverageDataCacheManager()
 
-		// Check authorization status first
-		let isAuthorized = await healthKit.checkReadAuthorization()
-
-		// If not authorized, return early with unauthorized state
-		if !isAuthorized {
-			Self.logger.info("HealthKit authorization not granted - returning unauthorized state")
-			return EnergyWidgetEntry(
-				date: date,
-				todayTotal: 0,
-				averageAtCurrentHour: 0,
-				projectedTotal: 0,
-				moveGoal: loadCachedMoveGoal(),
-				todayHourlyData: [],
-				averageHourlyData: [],
-				configuration: configuration,
-				isAuthorized: false
-			)
-		}
-
 		// Try to get fresh today's data from HealthKit
 		let todayData: [HourlyEnergyData]
 		let todayTotal: Double
@@ -253,38 +243,108 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				}
 			}
 		} catch {
-			Self.logger.error(
-				"❌ Widget FAILED to fetch today's HealthKit data at \(date, privacy: .public)")
-			Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
-			Self.logger.error("❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
+			// HealthKit query failed - attempt cache fallback
+			Self.logger.error("❌ HealthKit query failed - falling back to cache")
+			Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 
-			// Check if cached data is from a different day
-			let calendar = Calendar.current
-			let cachedEntry = loadCachedEntry(forDate: date, configuration: configuration)
+			// Log error code for diagnostics
+			let nsError = error as NSError
+			if nsError.domain == "com.apple.healthkit" && nsError.code == 6 {
+				Self.logger.info("   → Device locked (error code 6)")
+			}
 
-			// If cached data is from yesterday, return zero-state instead
-			if let lastDataPoint = cachedEntry.todayHourlyData.last,
-				!calendar.isDate(lastDataPoint.hour, inSameDayAs: date)
-			{
-				Self.logger.info("Cached data is from previous day - returning zero-state for new day")
+			// Try to read SharedEnergyData cache
+			do {
+				let cache = try SharedEnergyDataManager.shared.readEnergyData()
+				let calendar = Calendar.current
+
+				// Check if cache is from today
+				if calendar.isDate(cache.lastUpdated, inSameDayAs: date) {
+					// TODAY'S CACHE: Use full cached data
+					Self.logger.info("✅ Using today's cached data")
+					Self.logger.info("   Cache timestamp: \(cache.lastUpdated, privacy: .public)")
+					Self.logger.info("   Today total: \(cache.todayTotal, privacy: .public) kcal")
+
+					return EnergyWidgetEntry(
+						date: date,
+						todayTotal: cache.todayTotal,
+						averageAtCurrentHour: cache.averageAtCurrentHour,
+						projectedTotal: cache.projectedTotal,
+						moveGoal: cache.moveGoal,
+						todayHourlyData: cache.todayHourlyData.map { $0.toHourlyEnergyData() },
+						averageHourlyData: cache.averageHourlyData.map {
+							$0.toHourlyEnergyData()
+						},
+						configuration: configuration,
+						isAuthorized: true  // Cache exists = authorized
+					)
+				} else {
+					// YESTERDAY'S CACHE: Show average data with empty today
+					Self.logger.info("⚠️ Using yesterday's cache - showing average only")
+					Self.logger.info("   Cache timestamp: \(cache.lastUpdated, privacy: .public)")
+					Self.logger.info(
+						"   Projected total: \(cache.projectedTotal, privacy: .public) kcal")
+
+					return EnergyWidgetEntry(
+						date: date,
+						todayTotal: 0,
+						averageAtCurrentHour: cache.averageAtCurrentHour,
+						projectedTotal: cache.projectedTotal,
+						moveGoal: cache.moveGoal,
+						todayHourlyData: [],  // Empty today data
+						averageHourlyData: cache.averageHourlyData.map {
+							$0.toHourlyEnergyData()
+						},
+						configuration: configuration,
+						isAuthorized: true  // Cache exists = authorized
+					)
+				}
+			} catch SharedDataError.fileNotFound {
+				// NO CACHE: Never authorized OR first run
+				Self.logger.warning("❌ No cache found - returning unauthorized state")
 
 				return EnergyWidgetEntry(
 					date: date,
 					todayTotal: 0,
 					averageAtCurrentHour: 0,
-					projectedTotal: cachedEntry.projectedTotal,
-					moveGoal: cachedEntry.moveGoal,
-					todayHourlyData: [
-						HourlyEnergyData(hour: calendar.startOfDay(for: date), calories: 0)
-					],
-					averageHourlyData: cachedEntry.averageHourlyData,
+					projectedTotal: 0,
+					moveGoal: loadCachedMoveGoal(),
+					todayHourlyData: [],
+					averageHourlyData: [],
 					configuration: configuration,
-					isAuthorized: true
+					isAuthorized: false  // No cache = unauthorized
+				)
+			} catch SharedDataError.containerNotFound {
+				// APP GROUP ERROR: Configuration issue
+				Self.logger.error("❌ App group container not found - configuration error")
+
+				return EnergyWidgetEntry(
+					date: date,
+					todayTotal: 0,
+					averageAtCurrentHour: 0,
+					projectedTotal: 0,
+					moveGoal: loadCachedMoveGoal(),
+					todayHourlyData: [],
+					averageHourlyData: [],
+					configuration: configuration,
+					isAuthorized: false
+				)
+			} catch {
+				// OTHER CACHE ERROR: Corruption, decode failure, etc.
+				Self.logger.error("❌ Cache read error: \(error.localizedDescription, privacy: .public)")
+
+				return EnergyWidgetEntry(
+					date: date,
+					todayTotal: 0,
+					averageAtCurrentHour: 0,
+					projectedTotal: 0,
+					moveGoal: loadCachedMoveGoal(),
+					todayHourlyData: [],
+					averageHourlyData: [],
+					configuration: configuration,
+					isAuthorized: false
 				)
 			}
-
-			// Same day - safe to use cached data
-			return cachedEntry
 		}
 
 		// Load or refresh average data cache
@@ -293,10 +353,16 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		if cacheManager.shouldRefresh() {
 			// Cache is stale or missing - refresh it
+			Self.logger.info("Average data cache is stale/missing - refreshing from HealthKit")
+
 			do {
 				let (total, hourlyData) = try await healthKit.fetchAverageData()
 				projectedTotal = total
 				averageData = hourlyData
+
+				Self.logger.info("✅ Successfully fetched average data")
+				Self.logger.info("   Projected total: \(total, privacy: .public) kcal")
+				Self.logger.info("   Hourly data points: \(hourlyData.count)")
 
 				// Save to cache for future use
 				let cache = AverageDataCache(
@@ -306,17 +372,31 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					cacheVersion: 1
 				)
 				try? cacheManager.save(cache)
+				Self.logger.info("   ✅ Saved average data to cache")
 			} catch {
 				Self.logger.error("❌ Widget FAILED to fetch average data at \(date, privacy: .public)")
-				Self.logger.error("❌ Error: \(error.localizedDescription, privacy: .public)")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 				Self.logger.error(
-					"❌ Error type: \(String(describing: type(of: error)), privacy: .public)")
+					"   Error type: \(String(describing: type(of: error)), privacy: .public)")
+
 				// Try to use stale cache as fallback
 				if let staleCache = cacheManager.load() {
 					averageData = staleCache.toHourlyEnergyData()
 					projectedTotal = staleCache.projectedTotal
+					let cacheAge = date.timeIntervalSince(staleCache.cachedAt)
+
+					Self.logger.warning("   ⚠️ Using STALE cache as fallback")
+					Self.logger.warning(
+						"   Cache timestamp: \(staleCache.cachedAt, privacy: .public)")
+					Self.logger.warning(
+						"   Cache age: \(Int(cacheAge/3600)) hours (\(Int(cacheAge/60)) minutes)"
+					)
+					Self.logger.warning(
+						"   Projected total: \(projectedTotal, privacy: .public) kcal")
 				} else {
 					// No cache available - return today-only entry
+					Self.logger.error("   ❌ No stale cache available - returning today-only entry")
+
 					return EnergyWidgetEntry(
 						date: date,
 						todayTotal: todayTotal,
@@ -335,8 +415,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			if let cache = cacheManager.load() {
 				averageData = cache.toHourlyEnergyData()
 				projectedTotal = cache.projectedTotal
+				let cacheAge = date.timeIntervalSince(cache.cachedAt)
+
+				Self.logger.info("✅ Using fresh average data cache")
+				Self.logger.info("   Cache timestamp: \(cache.cachedAt, privacy: .public)")
+				Self.logger.info("   Cache age: \(Int(cacheAge/60)) minutes")
+				Self.logger.info("   Projected total: \(projectedTotal, privacy: .public) kcal")
 			} else {
 				// Shouldn't happen (shouldRefresh would return true), but handle gracefully
+				Self.logger.warning(
+					"⚠️ UNEXPECTED: shouldRefresh=false but no cache found - using empty average data"
+				)
 				averageData = []
 				projectedTotal = 0
 			}
@@ -376,9 +465,18 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				isAuthorized: true  // Cached data implies previous authorization
 			)
 		} catch {
-			Self.logger.warning(
-				"Failed to load cached energy data: \(error.localizedDescription, privacy: .public)")
-			return .placeholder
+			Self.logger.warning("Failed to load cached data in loadCachedEntry()")
+			return EnergyWidgetEntry(
+				date: date,
+				todayTotal: 0,
+				averageAtCurrentHour: 0,
+				projectedTotal: 0,
+				moveGoal: loadCachedMoveGoal(),
+				todayHourlyData: [],
+				averageHourlyData: [],
+				configuration: configuration,
+				isAuthorized: false  // No cache = unauthorized
+			)
 		}
 	}
 
