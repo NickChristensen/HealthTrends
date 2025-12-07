@@ -271,12 +271,19 @@ final class HealthKitManager {
 		self.refreshCount += 1
 
 		// Write today's data to shared container for widget fallback
-		try? SharedEnergyDataManager.shared.writeEnergyData(
-			todayTotal: self.todayTotal,
-			moveGoal: self.moveGoal,
-			todayHourlyData: self.todayHourlyData,
-			latestSampleTimestamp: self.latestSampleTimestamp
-		)
+		do {
+			try SharedEnergyDataManager.shared.writeEnergyData(
+				todayTotal: self.todayTotal,
+				moveGoal: self.moveGoal,
+				todayHourlyData: self.todayHourlyData,
+				latestSampleTimestamp: self.latestSampleTimestamp
+			)
+		} catch {
+			print("❌ CRITICAL: Failed to write energy data cache for widget")
+			print("   Error: \(error.localizedDescription)")
+			let nsError = error as NSError
+			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
+		}
 
 		// Write average data to weekday-specific cache for widget (refreshed daily)
 		let weekday = Weekday.today
@@ -286,7 +293,15 @@ final class HealthKitManager {
 			cachedAt: Date(),
 			cacheVersion: 1
 		)
-		try? AverageDataCacheManager().save(cache, for: weekday)
+		do {
+			try AverageDataCacheManager().save(cache, for: weekday)
+		} catch {
+			print("❌ CRITICAL: Failed to write weekday cache for widget")
+			print("   Weekday: \(weekday.rawValue)")
+			print("   Error: \(error.localizedDescription)")
+			let nsError = error as NSError
+			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
+		}
 
 		// Reload widget timelines to pick up fresh data
 		WidgetCenter.shared.reloadAllTimelines()
