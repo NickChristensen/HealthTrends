@@ -409,8 +409,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					cachedAt: Date(),
 					cacheVersion: 1
 				)
-				try? cacheManager.save(cache, for: weekday)
-				Self.logger.info("   ✅ Saved average data to weekday \(weekday.rawValue) cache")
+				do {
+					try cacheManager.save(cache, for: weekday)
+					Self.logger.info("   ✅ Saved average data to weekday \(weekday.rawValue) cache")
+				} catch {
+					Self.logger.error("   ❌ CRITICAL: Failed to save average cache")
+					Self.logger.error("   Weekday: \(weekday.rawValue)")
+					Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
+					Self.logger.error(
+						"   Widget will re-query HealthKit on every refresh (performance impact)"
+					)
+				}
 			} catch {
 				Self.logger.error("❌ Widget FAILED to fetch average data at \(date, privacy: .public)")
 				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
