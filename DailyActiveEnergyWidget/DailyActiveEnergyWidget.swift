@@ -222,16 +222,18 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let todayData: [HourlyEnergyData]
 		let todayTotal: Double
 		let moveGoal: Double
+		let latestSampleTimestamp: Date?
 
 		do {
 			// Query both today's data and move goal in parallel
 			async let hourlyTotals = healthKit.fetchTodayHourlyTotals()
 			async let goalQuery = healthKit.fetchMoveGoal()
 
-			let (hourlyData, fetchedGoal) = try await (hourlyTotals, goalQuery)
+			let ((hourlyData, sampleTimestamp), fetchedGoal) = try await (hourlyTotals, goalQuery)
 			todayData = hourlyData
 			todayTotal = hourlyData.last?.calories ?? 0
 			moveGoal = fetchedGoal > 0 ? fetchedGoal : loadCachedMoveGoal()
+			latestSampleTimestamp = sampleTimestamp
 
 			// Check data freshness - warn if older than 30 minutes
 			if let latestDataPoint = hourlyData.last {
@@ -252,12 +254,21 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		} catch {
 			// HealthKit query failed - attempt cache fallback
 			Self.logger.error("❌ HealthKit query failed - falling back to cache")
-			Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 
-			// Log error code for diagnostics
-			let nsError = error as NSError
-			if nsError.domain == "com.apple.healthkit" && nsError.code == 6 {
-				Self.logger.info("   → Device locked (error code 6)")
+			// Log specific error type for better diagnostics
+			if let hkError = error as? HKError {
+				Self.logger.error("   HealthKit error code: \(hkError.code.rawValue)")
+				switch hkError.code {
+				case .errorAuthorizationDenied, .errorAuthorizationNotDetermined:
+					Self.logger.error("   → Authorization issue")
+				case .errorDatabaseInaccessible:
+					Self.logger.error("   → Device locked (temporary)")
+				default:
+					Self.logger.error("   → HealthKit error: \(hkError.localizedDescription)")
+				}
+			} else {
+				Self.logger.error("   UNEXPECTED: Non-HealthKit error type: \(type(of: error))")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 			}
 
 			// Try to read SharedEnergyData cache (today only)
@@ -275,9 +286,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				// Check if cache is from today
 				if calendar.isDate(todayCache.lastUpdated, inSameDayAs: date) {
 					// TODAY'S CACHE: Use cached today data + cached average data
+					// Use latest sample timestamp if available, fallback to cache write time
+					let effectiveDate = todayCache.latestSampleTimestamp ?? todayCache.lastUpdated
+
 					Self.logger.info("✅ Using today's cached data + average cache")
 					Self.logger.info(
-						"   Today cache timestamp: \(todayCache.lastUpdated, privacy: .public)")
+						"   Cache write time: \(todayCache.lastUpdated, privacy: .public)")
+					Self.logger.info(
+						"   Latest sample: \(todayCache.latestSampleTimestamp?.description ?? "nil", privacy: .public)"
+					)
+					Self.logger.info(
+						"   Effective NOW: \(effectiveDate, privacy: .public)")
 					Self.logger.info(
 						"   Today total: \(todayCache.todayTotal, privacy: .public) kcal")
 					Self.logger.info(
@@ -285,7 +304,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					)
 
 					return EnergyWidgetEntry(
-						date: todayCache.lastUpdated,
+						date: effectiveDate,
 						todayTotal: todayCache.todayTotal,
 						averageAtCurrentHour: averageAtCurrentHour,
 						projectedTotal: projectedTotal,
@@ -299,13 +318,21 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					)
 				} else {
 					// YESTERDAY'S CACHE: Show average data with empty today
+					// Use latest sample timestamp if available, fallback to cache write time
+					let effectiveDate = todayCache.latestSampleTimestamp ?? todayCache.lastUpdated
+
 					Self.logger.info("⚠️ Using yesterday's cache - showing average only")
 					Self.logger.info(
-						"   Today cache timestamp: \(todayCache.lastUpdated, privacy: .public)")
+						"   Cache write time: \(todayCache.lastUpdated, privacy: .public)")
+					Self.logger.info(
+						"   Latest sample: \(todayCache.latestSampleTimestamp?.description ?? "nil", privacy: .public)"
+					)
+					Self.logger.info(
+						"   Effective NOW: \(effectiveDate, privacy: .public)")
 					Self.logger.info("   Projected total: \(projectedTotal, privacy: .public) kcal")
 
 					return EnergyWidgetEntry(
-						date: todayCache.lastUpdated,
+						date: effectiveDate,
 						todayTotal: 0,
 						averageAtCurrentHour: averageAtCurrentHour,
 						projectedTotal: projectedTotal,
@@ -346,9 +373,27 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					configuration: configuration,
 					isAuthorized: false
 				)
+			} catch let error as DecodingError {
+				// CACHE CORRUPTION: Failed to decode cached data
+				Self.logger.error("❌ Cache corruption: Failed to decode cached data")
+				Self.logger.error("   Error: \(String(describing: error))")
+				Self.logger.error("   Action: Cache will be regenerated on next app launch")
+
+				return EnergyWidgetEntry(
+					date: date,
+					todayTotal: 0,
+					averageAtCurrentHour: 0,
+					projectedTotal: 0,
+					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
+					todayHourlyData: [],
+					averageHourlyData: [],
+					configuration: configuration,
+					isAuthorized: false
+				)
 			} catch {
-				// OTHER CACHE ERROR: Corruption, decode failure, etc.
-				Self.logger.error("❌ Cache read error: \(error.localizedDescription, privacy: .public)")
+				// OTHER UNEXPECTED CACHE ERROR
+				Self.logger.error("❌ UNEXPECTED cache error: \(type(of: error))")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 
 				return EnergyWidgetEntry(
 					date: date,
@@ -391,8 +436,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					cachedAt: Date(),
 					cacheVersion: 1
 				)
-				try? cacheManager.save(cache, for: weekday)
-				Self.logger.info("   ✅ Saved average data to weekday \(weekday.rawValue) cache")
+				do {
+					try cacheManager.save(cache, for: weekday)
+					Self.logger.info("   ✅ Saved average data to weekday \(weekday.rawValue) cache")
+				} catch {
+					Self.logger.error("   ❌ CRITICAL: Failed to save average cache")
+					Self.logger.error("   Weekday: \(weekday.rawValue)")
+					Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
+					Self.logger.error(
+						"   Widget will re-query HealthKit on every refresh (performance impact)"
+					)
+				}
 			} catch {
 				Self.logger.error("❌ Widget FAILED to fetch average data at \(date, privacy: .public)")
 				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
@@ -457,8 +511,22 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		}
 
 		// Calculate interpolated average at current hour
-		let effectiveDate = todayData.last?.hour ?? date  // Align "now" with freshest data point
+		// Priority for "NOW" marker: latest sample timestamp > data point timestamp > query time
+		// Rationale: Latest sample timestamp is the true time of HealthKit data freshness.
+		// This prevents the NOW marker from appearing ahead of actual data when there's a delay
+		// between sample collection and widget refresh (e.g., device locked, background sync).
+		let effectiveDate = latestSampleTimestamp ?? todayData.last?.hour ?? date
 		let averageAtCurrentHour = averageData.interpolatedValue(at: effectiveDate) ?? 0
+
+		// Log timestamp details for debugging
+		Self.logger.info("Widget timeline entry created:")
+		Self.logger.info("   Query time: \(date, privacy: .public)")
+		Self.logger.info("   Latest sample: \(latestSampleTimestamp?.description ?? "nil", privacy: .public)")
+		Self.logger.info("   Effective NOW: \(effectiveDate, privacy: .public)")
+		if let sampleTime = latestSampleTimestamp {
+			let staleness = Int(date.timeIntervalSince(sampleTime))
+			Self.logger.info("   Data age: \(staleness)s")
+		}
 
 		return EnergyWidgetEntry(
 			date: effectiveDate,
@@ -583,7 +651,8 @@ struct DailyActiveEnergyWidgetEntryView: View {
 			todayHourlyData: entry.todayHourlyData,
 			averageHourlyData: entry.averageHourlyData,
 			moveGoal: entry.moveGoal,
-			projectedTotal: entry.projectedTotal
+			projectedTotal: entry.projectedTotal,
+			effectiveNow: entry.date
 		)
 	}
 }

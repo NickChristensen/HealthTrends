@@ -7,6 +7,7 @@ struct SharedEnergyData: Codable {
 	let moveGoal: Double
 	let todayHourlyData: [SerializableHourlyEnergyData]
 	let lastUpdated: Date
+	let latestSampleTimestamp: Date?  // Timestamp of most recent HealthKit sample
 
 	/// Codable version of HourlyEnergyData
 	struct SerializableHourlyEnergyData: Codable {
@@ -47,7 +48,8 @@ final class SharedEnergyDataManager {
 	func writeEnergyData(
 		todayTotal: Double,
 		moveGoal: Double,
-		todayHourlyData: [HourlyEnergyData]
+		todayHourlyData: [HourlyEnergyData],
+		latestSampleTimestamp: Date? = nil
 	) throws {
 		guard let fileURL = fileURL else {
 			throw SharedDataError.containerNotFound
@@ -57,7 +59,8 @@ final class SharedEnergyDataManager {
 			todayTotal: todayTotal,
 			moveGoal: moveGoal,
 			todayHourlyData: todayHourlyData.map { .init(from: $0) },
-			lastUpdated: Date()
+			lastUpdated: Date(),
+			latestSampleTimestamp: latestSampleTimestamp
 		)
 
 		let encoder = JSONEncoder()

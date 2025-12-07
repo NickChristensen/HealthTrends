@@ -11,6 +11,7 @@ struct EnergyTrendView: View {
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
 	let projectedTotal: Double
+	let effectiveNow: Date  // Timestamp representing "now" for the chart
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 
@@ -49,7 +50,8 @@ struct EnergyTrendView: View {
 					todayHourlyData: todayHourlyData,
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
-					projectedTotal: projectedTotal
+					projectedTotal: projectedTotal,
+					effectiveNow: effectiveNow
 				)
 				.frame(maxHeight: .infinity)
 			}
