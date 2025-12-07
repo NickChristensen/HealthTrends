@@ -254,12 +254,21 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		} catch {
 			// HealthKit query failed - attempt cache fallback
 			Self.logger.error("❌ HealthKit query failed - falling back to cache")
-			Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 
-			// Log error code for diagnostics
-			let nsError = error as NSError
-			if nsError.domain == "com.apple.healthkit" && nsError.code == 6 {
-				Self.logger.info("   → Device locked (error code 6)")
+			// Log specific error type for better diagnostics
+			if let hkError = error as? HKError {
+				Self.logger.error("   HealthKit error code: \(hkError.code.rawValue)")
+				switch hkError.code {
+				case .errorAuthorizationDenied, .errorAuthorizationNotDetermined:
+					Self.logger.error("   → Authorization issue")
+				case .errorDatabaseInaccessible:
+					Self.logger.error("   → Device locked (temporary)")
+				default:
+					Self.logger.error("   → HealthKit error: \(hkError.localizedDescription)")
+				}
+			} else {
+				Self.logger.error("   UNEXPECTED: Non-HealthKit error type: \(type(of: error))")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 			}
 
 			// Try to read SharedEnergyData cache (today only)
