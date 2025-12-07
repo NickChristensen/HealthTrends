@@ -373,9 +373,27 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					configuration: configuration,
 					isAuthorized: false
 				)
+			} catch let error as DecodingError {
+				// CACHE CORRUPTION: Failed to decode cached data
+				Self.logger.error("❌ Cache corruption: Failed to decode cached data")
+				Self.logger.error("   Error: \(String(describing: error))")
+				Self.logger.error("   Action: Cache will be regenerated on next app launch")
+
+				return EnergyWidgetEntry(
+					date: date,
+					todayTotal: 0,
+					averageAtCurrentHour: 0,
+					projectedTotal: 0,
+					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
+					todayHourlyData: [],
+					averageHourlyData: [],
+					configuration: configuration,
+					isAuthorized: false
+				)
 			} catch {
-				// OTHER CACHE ERROR: Corruption, decode failure, etc.
-				Self.logger.error("❌ Cache read error: \(error.localizedDescription, privacy: .public)")
+				// OTHER UNEXPECTED CACHE ERROR
+				Self.logger.error("❌ UNEXPECTED cache error: \(type(of: error))")
+				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 
 				return EnergyWidgetEntry(
 					date: date,
