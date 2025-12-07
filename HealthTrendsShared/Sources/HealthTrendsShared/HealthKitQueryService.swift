@@ -130,7 +130,9 @@ public final class HealthKitQueryService: Sendable {
 	}
 
 	/// Fetch today's hourly energy breakdown
-	/// Returns cumulative calories at each hour boundary
+	/// Returns tuple of:
+	/// - data: Cumulative calories at each hour boundary
+	/// - latestSampleTimestamp: Timestamp of most recent HealthKit sample (nil if no samples)
 	public func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
 		let now = Date()
 		let startOfDay = calendar.startOfDay(for: now)
