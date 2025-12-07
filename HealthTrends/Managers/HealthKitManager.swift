@@ -16,6 +16,7 @@ final class HealthKitManager {
 	var moveGoal: Double = 0  // Daily Move goal from Fitness app
 	var todayHourlyData: [HourlyEnergyData] = []
 	var averageHourlyData: [HourlyEnergyData] = []
+	private(set) var latestSampleTimestamp: Date? = nil  // Timestamp of most recent HealthKit sample
 	private(set) var refreshCount: Int = 0  // Increments on each refresh to force UI updates
 
 	init() {
@@ -143,7 +144,8 @@ final class HealthKitManager {
 	}
 
 	// Generate realistic sample Active Energy data
-	func generateSampleData() async throws {
+	// dataAge: How far back from current time to generate data (in seconds). Default 0 = up to current time.
+	func generateSampleData(dataAge: TimeInterval = 0) async throws {
 		guard isHealthKitAvailable else {
 			throw HealthKitError.notAvailable
 		}
@@ -157,6 +159,7 @@ final class HealthKitManager {
 		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 		let calendar = Calendar.current
 		let now = Date()
+		let effectiveNow = now.addingTimeInterval(-dataAge)
 
 		// Generate data for the past 60 days
 		var samplesToSave: [HKQuantitySample] = []
@@ -169,9 +172,11 @@ final class HealthKitManager {
 				continue
 			}
 
-			// For today (dayOffset == 0), only generate up to current hour
+			// For today (dayOffset == 0), only generate up to effectiveNow
 			// For past days, generate all 24 hours
-			let maxHour = dayOffset == 0 ? calendar.component(.hour, from: now) : 23
+			let currentHour = calendar.component(.hour, from: effectiveNow)
+			let currentMinute = calendar.component(.minute, from: effectiveNow)
+			let maxHour = dayOffset == 0 ? currentHour : 23
 
 			// Generate hourly data points for each day
 			for hour in 0...maxHour {
@@ -179,21 +184,41 @@ final class HealthKitManager {
 					continue
 				}
 
-				// Don't generate data in the future
-				guard hourStart <= now else {
+				// Don't generate data beyond effectiveNow
+				guard hourStart <= effectiveNow else {
 					continue
 				}
 
-				// Generate realistic calories per hour
+				// For the current hour on today, check if we need a partial hour or full hour
+				let isCurrentHour = (dayOffset == 0 && hour == currentHour)
+				let hourEnd: Date
+
+				if isCurrentHour && currentMinute > 0 {
+					// Generate partial hour up to the exact minute
+					hourEnd = effectiveNow
+				} else {
+					// Generate full hour
+					hourEnd = calendar.date(byAdding: .hour, value: 1, to: hourStart)!
+				}
+
+				// Generate realistic calories per hour (prorated if partial)
 				let baseCalories = generateRealisticCalories(for: hour)
-				let calories = baseCalories + Double.random(in: -10...10)
+				let calories: Double
+
+				if isCurrentHour && currentMinute > 0 {
+					// Prorate calories based on fraction of hour
+					let fractionOfHour = Double(currentMinute) / 60.0
+					calories = (baseCalories + Double.random(in: -10...10)) * fractionOfHour
+				} else {
+					calories = baseCalories + Double.random(in: -10...10)
+				}
 
 				let quantity = HKQuantity(unit: .kilocalorie(), doubleValue: max(0, calories))
 				let sample = HKQuantitySample(
 					type: activeEnergyType,
 					quantity: quantity,
 					start: hourStart,
-					end: calendar.date(byAdding: .hour, value: 1, to: hourStart)!
+					end: hourEnd
 				)
 
 				samplesToSave.append(sample)
@@ -235,6 +260,7 @@ final class HealthKitManager {
 
 		self.todayTotal = today.total
 		self.todayHourlyData = today.hourlyData
+		self.latestSampleTimestamp = today.latestSampleTimestamp
 		self.projectedTotal = average.total
 		self.averageHourlyData = average.hourlyData
 
@@ -248,7 +274,8 @@ final class HealthKitManager {
 		try? SharedEnergyDataManager.shared.writeEnergyData(
 			todayTotal: self.todayTotal,
 			moveGoal: self.moveGoal,
-			todayHourlyData: self.todayHourlyData
+			todayHourlyData: self.todayHourlyData,
+			latestSampleTimestamp: self.latestSampleTimestamp
 		)
 
 		// Write average data to weekday-specific cache for widget (refreshed daily)
@@ -285,45 +312,17 @@ final class HealthKitManager {
 
 	// Fetch today's Active Energy data
 	// Returns cumulative calories at each hour (see CLAUDE.md for "Today" definition)
-	private func fetchTodayData() async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
-		let calendar = Calendar.current
-		let now = Date()
-		let startOfDay = calendar.startOfDay(for: now)
+	private func fetchTodayData() async throws -> (
+		total: Double, hourlyData: [HourlyEnergyData], latestSampleTimestamp: Date?
+	) {
+		// Use shared query service to get hourly data and latest sample timestamp
+		let queryService = HealthKitQueryService(healthStore: healthStore)
+		let (cumulativeData, latestSampleTimestamp) = try await queryService.fetchTodayHourlyTotals()
 
-		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+		// Total is the last data point's calories (cumulative)
+		let total = cumulativeData.last?.calories ?? 0
 
-		// Fetch hourly data (non-cumulative)
-		let hourlyData = try await fetchHourlyData(from: startOfDay, to: now, type: activeEnergyType)
-
-		let currentHourStart = calendar.dateInterval(of: .hour, for: now)!.start
-
-		// Filter out current incomplete hour for completed hours
-		let completeHours = hourlyData.filter { $0.hour < currentHourStart }
-
-		// Convert to cumulative data (running sum)
-		// Timestamps represent END of each complete hour
-		var cumulativeData: [HourlyEnergyData] = []
-
-		// Start with 0 at midnight to show beginning of day
-		cumulativeData.append(HourlyEnergyData(hour: startOfDay, calories: 0))
-
-		var runningTotal: Double = 0
-		for data in completeHours.sorted(by: { $0.hour < $1.hour }) {
-			runningTotal += data.calories
-			// Use end of hour for timestamp
-			let timestamp = calendar.date(byAdding: .hour, value: 1, to: data.hour)!
-			cumulativeData.append(HourlyEnergyData(hour: timestamp, calories: runningTotal))
-		}
-
-		// A    dd current hour progress (timestamp = current time, not end of hour)
-		let currentHourCalories = hourlyData.first(where: { $0.hour == currentHourStart })?.calories ?? 0
-		let total = runningTotal + currentHourCalories
-
-		if currentHourCalories > 0 {
-			cumulativeData.append(HourlyEnergyData(hour: now, calories: total))
-		}
-
-		return (total, cumulativeData)
+		return (total, cumulativeData, latestSampleTimestamp)
 	}
 
 	// Fetch average Active Energy data from past occurrences of the current weekday

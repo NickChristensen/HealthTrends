@@ -1,6 +1,38 @@
 import SwiftUI
 import WidgetKit
 
+/// UIKit DatePicker wrapped for countdown timer mode
+struct CountdownTimerPicker: UIViewRepresentable {
+	@Binding var duration: TimeInterval
+
+	func makeUIView(context: Context) -> UIDatePicker {
+		let picker = UIDatePicker()
+		picker.datePickerMode = .countDownTimer
+		picker.addTarget(context.coordinator, action: #selector(Coordinator.valueChanged), for: .valueChanged)
+		return picker
+	}
+
+	func updateUIView(_ picker: UIDatePicker, context: Context) {
+		picker.countDownDuration = duration
+	}
+
+	func makeCoordinator() -> Coordinator {
+		Coordinator(duration: $duration)
+	}
+
+	class Coordinator: NSObject {
+		let duration: Binding<TimeInterval>
+
+		init(duration: Binding<TimeInterval>) {
+			self.duration = duration
+		}
+
+		@objc func valueChanged(_ picker: UIDatePicker) {
+			duration.wrappedValue = picker.countDownDuration
+		}
+	}
+}
+
 /// State for action buttons with icon transitions
 enum ActionButtonState {
 	case idle
@@ -32,10 +64,13 @@ struct ActionButton: View {
 				iconView
 					.frame(width: 24, height: 24)
 				Text(title)
-					.foregroundStyle(.primary)
+				Spacer()
 			}
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.contentShape(Rectangle())
 		}
-		.buttonStyle(.borderless)
+		.buttonStyle(.plain)
+		.foregroundStyle(Color.accentColor)
 		.disabled(state == .loading)
 	}
 
@@ -60,32 +95,53 @@ struct DevelopmentToolsSheet: View {
 
 	@State private var showingPermissionError = false
 	@State private var permissionErrorMessage = ""
+	@State private var offsetSampleData: Bool = false
+	@State private var selectedDuration: TimeInterval = 60 * 60  // Default to 1 hour
 
 	var body: some View {
 		NavigationStack {
 			List {
 				#if targetEnvironment(simulator)
-					ActionButton(
-						title: "Generate Sample Data",
-						icon: "testtube.2",
-					) {
-						do {
-							try await healthKitManager.generateSampleData()
-							// Refresh data after generating
-							try await healthKitManager.fetchEnergyData()
-							try await healthKitManager.fetchMoveGoal()
-						} catch {
-							permissionErrorMessage =
-								"Write permission is required to generate sample data. Please allow access when prompted."
-							showingPermissionError = true
-							print("Failed to generate sample data: \(error)")
+					Section {
+						Toggle("Offset sample data", isOn: $offsetSampleData)
+							.listRowBackground(Color(.systemBackground))
+
+						if offsetSampleData {
+							CountdownTimerPicker(duration: $selectedDuration)
+								.frame(maxWidth: .infinity)
+								.listRowBackground(Color(.systemBackground))
+						}
+
+						ActionButton(
+							title: "Generate sample data",
+							icon: "testtube.2",
+						) {
+							do {
+								let dataAge = offsetSampleData ? selectedDuration : 0
+								try await healthKitManager.generateSampleData(
+									dataAge: dataAge)
+								// Refresh data after generating
+								try await healthKitManager.fetchEnergyData()
+								try await healthKitManager.fetchMoveGoal()
+							} catch {
+								permissionErrorMessage =
+									"Write permission is required to generate sample data. Please allow access when prompted."
+								showingPermissionError = true
+								print("Failed to generate sample data: \(error)")
+							}
+						}
+						.listRowBackground(Color(.systemBackground))
+					} footer: {
+						if offsetSampleData {
+							Text("Generate data up to the specified time in the past")
+						} else {
+							Text("Generate data up to the current time")
 						}
 					}
-					.listRowBackground(Color(.systemBackground))
 				#endif
 
 				ActionButton(
-					title: "Reload Widgets",
+					title: "Reload widgets",
 					icon: "widget.small",
 				) {
 					WidgetCenter.shared.reloadAllTimelines()

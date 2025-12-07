@@ -63,9 +63,10 @@ private func calculateLabelCollisions(chartWidth: CGFloat, now: Date) -> (hidesS
 /// X-axis labels component (start of day, current hour, end of day)
 private struct ChartXAxisLabels: View {
 	let chartWidth: CGFloat
+	let effectiveNow: Date  // Timestamp representing "now" for the chart
 
 	private var calendar: Calendar { Calendar.current }
-	private var now: Date { getCurrentTime() }
+	private var now: Date { effectiveNow }
 
 	var body: some View {
 		ZStack(alignment: .bottom) {
@@ -153,11 +154,12 @@ struct EnergyChartView: View {
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
 	let projectedTotal: Double
+	let effectiveNow: Date  // Timestamp representing "now" for the chart
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 
 	private var calendar: Calendar { Calendar.current }
-	private var now: Date { getCurrentTime() }
+	private var now: Date { effectiveNow }
 	private var currentHour: Int { calendar.component(.hour, from: now) }
 	private var startOfCurrentHour: Date {
 		calendar.dateInterval(of: .hour, for: now)!.start
@@ -401,7 +403,7 @@ struct EnergyChartView: View {
 				}
 
 				// X-axis labels below chart (fixed height)
-				ChartXAxisLabels(chartWidth: chartWidth)
+				ChartXAxisLabels(chartWidth: chartWidth, effectiveNow: effectiveNow)
 					.padding(.top, 8)
 			}
 		}

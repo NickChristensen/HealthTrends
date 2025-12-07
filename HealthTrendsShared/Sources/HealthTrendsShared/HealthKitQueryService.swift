@@ -131,14 +131,15 @@ public final class HealthKitQueryService: Sendable {
 
 	/// Fetch today's hourly energy breakdown
 	/// Returns cumulative calories at each hour boundary
-	public func fetchTodayHourlyTotals() async throws -> [HourlyEnergyData] {
+	public func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
 		let now = Date()
 		let startOfDay = calendar.startOfDay(for: now)
 
 		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 
-		// Fetch hourly data (non-cumulative)
-		let hourlyData = try await fetchHourlyData(from: startOfDay, to: now, type: activeEnergyType)
+		// Fetch hourly data (non-cumulative) and latest sample timestamp
+		let (hourlyData, latestSampleTimestamp) = try await fetchHourlyData(
+			from: startOfDay, to: now, type: activeEnergyType)
 
 		let currentHourStart = calendar.dateInterval(of: .hour, for: now)!.start
 
@@ -167,7 +168,7 @@ public final class HealthKitQueryService: Sendable {
 			cumulativeData.append(HourlyEnergyData(hour: now, calories: total))
 		}
 
-		return cumulativeData
+		return (cumulativeData, latestSampleTimestamp)
 	}
 
 	/// Fetch average Active Energy data from past occurrences of the current weekday
@@ -246,12 +247,13 @@ public final class HealthKitQueryService: Sendable {
 
 	/// Fetch hourly data for a specific time range
 	private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws
-		-> [HourlyEnergyData]
+		-> (data: [HourlyEnergyData], latestSampleTimestamp: Date?)
 	{
 		let predicate = HKQuery.predicateForSamples(
 			withStart: startDate, end: endDate, options: .strictStartDate)
 
 		var hourlyTotals: [Date: Double] = [:]
+		var latestSampleTimestamp: Date? = nil
 
 		let samples = try await withCheckedThrowingContinuation {
 			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
@@ -268,17 +270,26 @@ public final class HealthKitQueryService: Sendable {
 			healthStore.execute(query)
 		}
 
-		// Group by hour
+		// Group by hour and track latest sample timestamp
 		for sample in samples {
 			let hourStart =
 				calendar.dateInterval(of: .hour, for: sample.startDate)?.start ?? sample.startDate
 			let calories = sample.quantity.doubleValue(for: .kilocalorie())
 			hourlyTotals[hourStart, default: 0] += calories
+
+			// Track latest sample (use endDate for accuracy)
+			if let currentLatest = latestSampleTimestamp {
+				latestSampleTimestamp = max(currentLatest, sample.endDate)
+			} else {
+				latestSampleTimestamp = sample.endDate
+			}
 		}
 
 		// Convert to array and sort
-		return hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
+		let data = hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
 			.sorted { $0.hour < $1.hour }
+
+		return (data, latestSampleTimestamp)
 	}
 
 	/// Fetch daily totals for a date range
