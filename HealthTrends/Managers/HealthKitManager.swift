@@ -380,6 +380,7 @@ final class HealthKitManager {
 		print("📊 Populating weekday-specific average caches for all 7 weekdays...")
 
 		let cacheManager = AverageDataCacheManager()
+		var failedWeekdays: [Int] = []
 
 		// Populate caches for all 7 weekdays (1=Sunday through 7=Saturday)
 		for weekdayRawValue in 1...7 {
@@ -402,12 +403,21 @@ final class HealthKitManager {
 					"  ✅ Cached weekday \(weekdayRawValue): \(total) kcal projected, \(hourlyData.count) hourly points"
 				)
 			} catch {
-				print("  ⚠️ Failed to cache weekday \(weekdayRawValue): \(error.localizedDescription)")
-				// Continue with other weekdays even if one fails
+				failedWeekdays.append(weekdayRawValue)
+				print("  ❌ FAILED to cache weekday \(weekdayRawValue)")
+				print("     Error: \(error.localizedDescription)")
+				let nsError = error as NSError
+				print("     Domain: \(nsError.domain), Code: \(nsError.code)")
 			}
 		}
 
-		print("✅ Weekday cache population complete")
+		if failedWeekdays.isEmpty {
+			print("✅ Weekday cache population complete - all 7 weekdays cached")
+		} else {
+			print("⚠️ Weekday cache population INCOMPLETE")
+			print("   Failed weekdays: \(failedWeekdays.map { String($0) }.joined(separator: ", "))")
+			print("   Widget may show incomplete data on these weekdays")
+		}
 	}
 
 	// Fetch hourly data for a specific time range
