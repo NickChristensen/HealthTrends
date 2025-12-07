@@ -511,7 +511,10 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		}
 
 		// Calculate interpolated average at current hour
-		// Priority: latest sample timestamp > data point timestamp > query time
+		// Priority for "NOW" marker: latest sample timestamp > data point timestamp > query time
+		// Rationale: Latest sample timestamp is the true time of HealthKit data freshness.
+		// This prevents the NOW marker from appearing ahead of actual data when there's a delay
+		// between sample collection and widget refresh (e.g., device locked, background sync).
 		let effectiveDate = latestSampleTimestamp ?? todayData.last?.hour ?? date
 		let averageAtCurrentHour = averageData.interpolatedValue(at: effectiveDate) ?? 0
 
