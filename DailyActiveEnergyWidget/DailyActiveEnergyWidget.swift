@@ -283,11 +283,21 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				let averageAtCurrentHour =
 					averageHourlyData.interpolatedValue(at: todayCache.lastUpdated) ?? 0
 
-				// Check if cache is from today
-				if calendar.isDate(todayCache.lastUpdated, inSameDayAs: date) {
+				// Determine effectiveDate: use sample timestamp only if it's from today
+				let effectiveDate: Date
+				if let sampleTime = todayCache.latestSampleTimestamp,
+					calendar.isDate(sampleTime, inSameDayAs: date)
+				{
+					effectiveDate = sampleTime  // Sample is from today, use it
+				} else {
+					effectiveDate = date  // No sample or stale sample, use current time
+				}
+
+				// Determine if cache is from today (used for branch logic)
+				let isCacheFromToday = calendar.isDate(todayCache.lastUpdated, inSameDayAs: date)
+
+				if isCacheFromToday {
 					// TODAY'S CACHE: Use cached today data + cached average data
-					// Use latest sample timestamp if available, fallback to cache write time
-					let effectiveDate = todayCache.latestSampleTimestamp ?? todayCache.lastUpdated
 
 					Self.logger.info("✅ Using today's cached data + average cache")
 					Self.logger.info(
@@ -318,8 +328,6 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					)
 				} else {
 					// YESTERDAY'S CACHE: Show average data with empty today
-					// Use latest sample timestamp if available, fallback to cache write time
-					let effectiveDate = todayCache.latestSampleTimestamp ?? todayCache.lastUpdated
 
 					Self.logger.info("⚠️ Using yesterday's cache - showing average only")
 					Self.logger.info(
