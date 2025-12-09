@@ -1,3 +1,4 @@
+import HealthTrendsShared
 import SwiftUI
 import WidgetKit
 
@@ -97,6 +98,7 @@ struct DevelopmentToolsSheet: View {
 	@State private var permissionErrorMessage = ""
 	@State private var offsetSampleData: Bool = false
 	@State private var selectedDuration: TimeInterval = 60 * 60  // Default to 1 hour
+	@State private var cacheViewRefreshID = UUID()
 
 	var body: some View {
 		NavigationStack {
@@ -147,6 +149,33 @@ struct DevelopmentToolsSheet: View {
 					WidgetCenter.shared.reloadAllTimelines()
 				}
 				.listRowBackground(Color(.systemBackground))
+
+				ActionButton(
+					title: "Fetch health data",
+					icon: "heart.fill",
+				) {
+					do {
+						try await healthKitManager.fetchEnergyData()
+						cacheViewRefreshID = UUID()
+					} catch {
+						print("Failed to fetch health data: \(error)")
+					}
+				}
+				.listRowBackground(Color(.systemBackground))
+
+				ActionButton(
+					title: "Rebuild average data cache",
+					icon: "arrow.clockwise",
+				) {
+					await healthKitManager.populateWeekdayCaches()
+					cacheViewRefreshID = UUID()
+				}
+				.listRowBackground(Color(.systemBackground))
+
+				Section {
+					CacheDebugView()
+						.id(cacheViewRefreshID)
+				}
 			}
 			.listStyle(.insetGrouped)
 			.navigationTitle("Development Tools")
@@ -159,7 +188,7 @@ struct DevelopmentToolsSheet: View {
 				}
 			}
 		}
-		.presentationDetents([.medium])
+		.presentationDetents([.medium, .large])
 		.alert("Permission Required", isPresented: $showingPermissionError) {
 			Button("OK", role: .cancel) {}
 		} message: {
