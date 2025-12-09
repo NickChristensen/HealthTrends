@@ -249,7 +249,7 @@ public final class AverageDataCacheManager: Sendable {
 	// MARK: - Private Helpers
 
 	/// Load the entire weekday cache container from disk
-	private func loadContainer() -> WeekdayAverageCache? {
+	public func loadContainer() -> WeekdayAverageCache? {
 		guard let fileURL = fileURL,
 			FileManager.default.fileExists(atPath: fileURL.path)
 		else {
