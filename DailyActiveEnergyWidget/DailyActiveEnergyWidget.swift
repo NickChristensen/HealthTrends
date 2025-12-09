@@ -677,6 +677,7 @@ struct DailyActiveEnergyWidget: Widget {
 			DailyActiveEnergyWidgetEntryView(entry: entry)
 				.containerBackground(Color(.systemBackground), for: .widget)
 		}
+		.contentMarginsDisabled()
 		.configurationDisplayName("Daily Active Energy")
 		.description("Track your active energy compared to your recent average")
 		.supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
@@ -685,13 +686,12 @@ struct DailyActiveEnergyWidget: Widget {
 
 // MARK: - Previews
 
-//#Preview(as: .systemMedium) {
-//    DailyActiveEnergyWidget()
-//} timeline: {
-//    EnergyWidgetEntry.placeholder
-//}
-
 #Preview(as: .systemLarge) {
+	DailyActiveEnergyWidget()
+} timeline: {
+	EnergyWidgetEntry.placeholder
+}
+#Preview(as: .systemMedium) {
 	DailyActiveEnergyWidget()
 } timeline: {
 	EnergyWidgetEntry.placeholder

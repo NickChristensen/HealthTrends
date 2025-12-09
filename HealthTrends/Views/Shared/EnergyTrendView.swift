@@ -14,13 +14,59 @@ struct EnergyTrendView: View {
 	let effectiveNow: Date  // Timestamp representing "now" for the chart
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
+	@Environment(\.widgetFamily) var widgetFamily
+
+	private var chartBackgroundColor: Color {
+		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
+	}
 
 	var body: some View {
-		GeometryReader { geometry in
-			let spacing = geometry.size.height > 300 ? 16.0 : 8.0
+		if widgetFamily == .systemMedium {
+			// Medium widget: horizontal layout
+			HStack(spacing: 0) {
+				// Header
+				VStack(spacing: 8) {
+					HeaderStatistic(
+						label: "Today", statistic: todayTotal, color: Color("AccentColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.opacity(widgetRenderingMode.primaryOpacity)
 
+					HeaderStatistic(
+						label: "Average", statistic: averageAtCurrentHour,
+						color: Color("AverageStatisticColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.opacity(widgetRenderingMode.secondaryOpacity)
+
+					HeaderStatistic(
+						label: "Total", statistic: projectedTotal,
+						color: Color("TotalStatisticTextColor"),
+						circleColor: Color("TotalStatisticCircleColor")
+					)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.opacity(widgetRenderingMode.tertiaryOpacity)
+				}
+				.padding(16)
+				.fixedSize(horizontal: false, vertical: true)
+
+				EnergyChartView(
+					todayHourlyData: todayHourlyData,
+					averageHourlyData: averageHourlyData,
+					moveGoal: moveGoal,
+					projectedTotal: projectedTotal,
+					effectiveNow: effectiveNow
+				)
+				.padding(.vertical, 8)
+				.padding(.horizontal, 8)
+				.background(chartBackgroundColor)
+				.frame(maxWidth: .infinity)
+			}
+		} else {
+			// Large/ExtraLarge widgets: vertical layout (stats on top, chart below)
+			let spacing = 16.0
 			VStack(spacing: spacing) {
-				// Header with statistics (fixed height)
+				// Header
 				HStack(spacing: 0) {
 					HeaderStatistic(
 						label: "Today", statistic: todayTotal, color: Color("AccentColor")
@@ -43,9 +89,9 @@ struct EnergyTrendView: View {
 					.frame(maxWidth: .infinity, alignment: .trailing)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
+				.padding(.horizontal, 16)
 				.fixedSize(horizontal: false, vertical: true)
 
-				// Energy Trend Chart (flexible height - takes remaining space)
 				EnergyChartView(
 					todayHourlyData: todayHourlyData,
 					averageHourlyData: averageHourlyData,
@@ -53,8 +99,11 @@ struct EnergyTrendView: View {
 					projectedTotal: projectedTotal,
 					effectiveNow: effectiveNow
 				)
+				.padding(.horizontal, 16)
+				.background(chartBackgroundColor)
 				.frame(maxHeight: .infinity)
 			}
+			.padding(.vertical, spacing)
 		}
 	}
 }
