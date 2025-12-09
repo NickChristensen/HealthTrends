@@ -166,7 +166,7 @@ struct EnergyChartView: View {
 	}
 
 	private var pointHaloColor: Color {
-		widgetRenderingMode == .accented ? .clear : Color("WidgetBackground")
+		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
 	}
 
 	/// Renders an hourly tick mark with appropriate styling
@@ -349,8 +349,8 @@ struct EnergyChartView: View {
 					nowLine
 					goalLine
 					averageLines
-					averagePoint
 					todayLine
+					averagePoint
 					todayPoint
 				}
 				.frame(maxHeight: .infinity)

@@ -15,6 +15,10 @@ struct EnergyTrendView: View {
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 
+	private var chartBackgroundColor: Color {
+		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
+	}
+
 	var body: some View {
 		GeometryReader { geometry in
 			let spacing = geometry.size.height > 300 ? 16.0 : 8.0
@@ -43,6 +47,7 @@ struct EnergyTrendView: View {
 					.frame(maxWidth: .infinity, alignment: .trailing)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
+				.padding(.horizontal, 16)
 				.fixedSize(horizontal: false, vertical: true)
 
 				// Energy Trend Chart (flexible height - takes remaining space)
@@ -53,8 +58,11 @@ struct EnergyTrendView: View {
 					projectedTotal: projectedTotal,
 					effectiveNow: effectiveNow
 				)
+				.padding(.horizontal, 16)
+				.background(chartBackgroundColor)
 				.frame(maxHeight: .infinity)
 			}
+			.padding(.vertical, 16)
 		}
 	}
 }

@@ -36,7 +36,7 @@ struct EnergyWidgetEntry: TimelineEntry {
 			todayHourlyData: generateSampleTodayData(),
 			averageHourlyData: generateSampleAverageData(),
 			configuration: EnergyWidgetConfigurationIntent(),
-			isAuthorized: false  // Show unauthorized view until timeline generates
+			isAuthorized: true  // Show unauthorized view until timeline generates
 		)
 	}
 
@@ -677,6 +677,7 @@ struct DailyActiveEnergyWidget: Widget {
 			DailyActiveEnergyWidgetEntryView(entry: entry)
 				.containerBackground(Color(.systemBackground), for: .widget)
 		}
+		.contentMarginsDisabled()
 		.configurationDisplayName("Daily Active Energy")
 		.description("Track your active energy compared to your recent average")
 		.supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
