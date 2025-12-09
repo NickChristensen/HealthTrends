@@ -64,9 +64,15 @@ private func calculateLabelCollisions(chartWidth: CGFloat, now: Date) -> (hidesS
 private struct ChartXAxisLabels: View {
 	let chartWidth: CGFloat
 	let effectiveNow: Date  // Timestamp representing "now" for the chart
+	let labelFont: Font  // Font size for labels
+
+	@Environment(\.widgetFamily) private var widgetFamily
 
 	private var calendar: Calendar { Calendar.current }
 	private var now: Date { effectiveNow }
+	private var showDayBoundaryLabels: Bool {
+		widgetFamily == .systemLarge || widgetFamily == .systemExtraLarge
+	}
 
 	var body: some View {
 		ZStack(alignment: .bottom) {
@@ -74,17 +80,17 @@ private struct ChartXAxisLabels: View {
 			let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 			let collisions = calculateLabelCollisions(chartWidth: chartWidth, now: now)
 
-			// Start of day - left aligned (hide if collides with current hour)
-			if !collisions.hidesStart {
+			// Start of day - left aligned (hide if collides with current hour or not systemLarge)
+			if showDayBoundaryLabels && !collisions.hidesStart {
 				Text(startOfDay, format: .dateTime.hour())
-					.font(.caption)
+					.font(labelFont)
 					.foregroundStyle(.secondary)
 					.frame(maxWidth: .infinity, alignment: .leading)
 			}
 
 			// NOW - centered at natural position, but edge-aligned if that would go out of bounds
 			Text(now, format: .dateTime.hour().minute())
-				.font(.caption)
+				.font(labelFont)
 				.foregroundStyle(.secondary)
 				.frame(
 					maxWidth: .infinity,
@@ -135,10 +141,10 @@ private struct ChartXAxisLabels: View {
 						}
 					}())
 
-			// End of day - right aligned (hide if collides with current hour)
-			if !collisions.hidesEnd {
+			// End of day - right aligned (hide if collides with current hour or not systemLarge)
+			if showDayBoundaryLabels && !collisions.hidesEnd {
 				Text(endOfDay, format: .dateTime.hour())
-					.font(.caption)
+					.font(labelFont)
 					.foregroundStyle(.secondary)
 					.frame(maxWidth: .infinity, alignment: .trailing)
 			}
@@ -157,6 +163,7 @@ struct EnergyChartView: View {
 	let effectiveNow: Date  // Timestamp representing "now" for the chart
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
+	@Environment(\.widgetFamily) var widgetFamily
 
 	private var calendar: Calendar { Calendar.current }
 	private var now: Date { effectiveNow }
@@ -167,6 +174,10 @@ struct EnergyChartView: View {
 
 	private var pointHaloColor: Color {
 		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
+	}
+
+	private var labelFont: Font {
+		widgetFamily == .systemLarge || widgetFamily == .systemExtraLarge ? .caption : .caption2
 	}
 
 	/// Renders an hourly tick mark with appropriate styling
@@ -392,7 +403,7 @@ struct EnergyChartView: View {
 						let goalYPosition = chartHeight * (1 - moveGoal / maxValue)
 
 						Text("\(Int(moveGoal)) cal")
-							.font(.caption)
+							.font(labelFont)
 							.fontWeight(.bold)
 							.foregroundStyle(Color("GoalLineColor"))
 							.offset(y: goalYPosition)
@@ -403,8 +414,10 @@ struct EnergyChartView: View {
 				}
 
 				// X-axis labels below chart (fixed height)
-				ChartXAxisLabels(chartWidth: chartWidth, effectiveNow: effectiveNow)
-					.padding(.top, 8)
+				ChartXAxisLabels(
+					chartWidth: chartWidth, effectiveNow: effectiveNow, labelFont: labelFont
+				)
+				.padding(.top, 8)
 			}
 		}
 	}

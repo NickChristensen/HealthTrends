@@ -697,3 +697,8 @@ struct DailyActiveEnergyWidget: Widget {
 } timeline: {
 	EnergyWidgetEntry.placeholder
 }
+#Preview(as: .systemMedium) {
+	DailyActiveEnergyWidget()
+} timeline: {
+	EnergyWidgetEntry.placeholder
+}
