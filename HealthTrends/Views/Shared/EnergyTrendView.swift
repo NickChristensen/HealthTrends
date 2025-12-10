@@ -17,7 +17,7 @@ struct EnergyTrendView: View {
 	@Environment(\.widgetFamily) var widgetFamily
 
 	private var chartBackgroundColor: Color {
-		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
+		widgetRenderingMode == .accented ? .clear : Color("AppBackground")
 	}
 
 	var body: some View {
@@ -47,8 +47,13 @@ struct EnergyTrendView: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
-				.padding(16)
-				.fixedSize(horizontal: false, vertical: true)
+                .fixedSize(horizontal: true, vertical: true)
+                .padding(16)
+//                Removing this in favor of fixed size above. Pick one.
+//                .containerRelativeFrame(.horizontal) { length, _ in
+//                    return length * 0.333
+//                }
+
 
 				EnergyChartView(
 					todayHourlyData: todayHourlyData,
@@ -57,9 +62,8 @@ struct EnergyTrendView: View {
 					projectedTotal: projectedTotal,
 					effectiveNow: effectiveNow
 				)
-				.padding(.vertical, 8)
-				.padding(.horizontal, 8)
-				.background(chartBackgroundColor)
+				.padding(16)
+                .background(chartBackgroundColor)
 				.frame(maxWidth: .infinity)
 			}
 		} else {
@@ -100,6 +104,7 @@ struct EnergyTrendView: View {
 					effectiveNow: effectiveNow
 				)
 				.padding(.horizontal, 16)
+                .padding(.top, spacing)
 				.background(chartBackgroundColor)
 				.frame(maxHeight: .infinity)
 			}

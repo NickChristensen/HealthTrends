@@ -70,9 +70,6 @@ private struct ChartXAxisLabels: View {
 
 	private var calendar: Calendar { Calendar.current }
 	private var now: Date { effectiveNow }
-	private var showDayBoundaryLabels: Bool {
-		widgetFamily == .systemLarge || widgetFamily == .systemExtraLarge
-	}
 
 	var body: some View {
 		ZStack(alignment: .bottom) {
@@ -81,7 +78,7 @@ private struct ChartXAxisLabels: View {
 			let collisions = calculateLabelCollisions(chartWidth: chartWidth, now: now)
 
 			// Start of day - left aligned (hide if collides with current hour or not systemLarge)
-			if showDayBoundaryLabels && !collisions.hidesStart {
+			if !collisions.hidesStart {
 				Text(startOfDay, format: .dateTime.hour())
 					.font(labelFont)
 					.foregroundStyle(.secondary)
@@ -142,7 +139,7 @@ private struct ChartXAxisLabels: View {
 					}())
 
 			// End of day - right aligned (hide if collides with current hour or not systemLarge)
-			if showDayBoundaryLabels && !collisions.hidesEnd {
+			if !collisions.hidesEnd {
 				Text(endOfDay, format: .dateTime.hour())
 					.font(labelFont)
 					.foregroundStyle(.secondary)
@@ -172,9 +169,9 @@ struct EnergyChartView: View {
 		calendar.dateInterval(of: .hour, for: now)!.start
 	}
 
-	private var pointHaloColor: Color {
-		widgetRenderingMode == .accented ? .clear : Color(.systemBackground)
-	}
+    private var chartBackgroundColor: Color {
+        widgetRenderingMode == .accented ? .clear : Color("AppBackground")
+    }
 
 	private var labelFont: Font {
 		widgetFamily == .systemLarge || widgetFamily == .systemExtraLarge ? .caption : .caption2
@@ -311,7 +308,7 @@ struct EnergyChartView: View {
 		// Show average point at NOW (interpolated value)
 		if let interpolated = interpolatedAverageAtNow {
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
-				.foregroundStyle(pointHaloColor).symbolSize(256)
+				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(Color("AverageLineBeforeNowColor")).symbolSize(100).opacity(
 					widgetRenderingMode.secondaryOpacity)
@@ -323,7 +320,7 @@ struct EnergyChartView: View {
 		if let last = todayHourlyData.last {
 			// Use NOW for x-position to align with average point and now line
 			PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(
-				pointHaloColor
+                chartBackgroundColor
 			).symbolSize(256)
 			PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(
 				Color("AccentColor")
@@ -406,7 +403,9 @@ struct EnergyChartView: View {
 							.font(labelFont)
 							.fontWeight(.bold)
 							.foregroundStyle(Color("GoalLineColor"))
-							.offset(y: goalYPosition)
+                            .offset(x: -4, y: goalYPosition)
+                            .padding(4)
+                            .background(chartBackgroundColor)
 							.frame(
 								maxWidth: .infinity, maxHeight: .infinity,
 								alignment: .topLeading)
