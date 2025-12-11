@@ -280,28 +280,24 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				let averageCache = cacheManager.load(for: Weekday.today)
 				let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
 				let projectedTotal = averageCache?.projectedTotal ?? 0
-				let averageAtCurrentHour =
-					averageHourlyData.interpolatedValue(at: todayCache.lastUpdated) ?? 0
 
-				// Determine effectiveDate: use sample timestamp only if it's from today
-				let effectiveDate: Date
-				if let sampleTime = todayCache.latestSampleTimestamp,
-					calendar.isDate(sampleTime, inSameDayAs: date)
-				{
-					effectiveDate = sampleTime  // Sample is from today, use it
-				} else {
-					effectiveDate = date  // No sample or stale sample, use current time
-				}
+				// Determine effectiveDate: use sample timestamp if available, otherwise current time
+				let effectiveDate = todayCache.latestSampleTimestamp ?? date
+				let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: effectiveDate) ?? 0
 
 				// Determine if cache is from today (used for branch logic)
-				let isCacheFromToday = calendar.isDate(todayCache.lastUpdated, inSameDayAs: date)
+				// If no sample timestamp exists, treat as stale (fail-safe)
+				let isCacheFromToday: Bool
+				if let sampleTime = todayCache.latestSampleTimestamp {
+					isCacheFromToday = calendar.isDate(sampleTime, inSameDayAs: date)
+				} else {
+					isCacheFromToday = false  // No timestamp = treat as stale
+				}
 
 				if isCacheFromToday {
 					// TODAY'S CACHE: Use cached today data + cached average data
 
 					Self.logger.info("✅ Using today's cached data + average cache")
-					Self.logger.info(
-						"   Cache write time: \(todayCache.lastUpdated, privacy: .public)")
 					Self.logger.info(
 						"   Latest sample: \(todayCache.latestSampleTimestamp?.description ?? "nil", privacy: .public)"
 					)
@@ -330,8 +326,6 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					// YESTERDAY'S CACHE: Show average data with empty today
 
 					Self.logger.info("⚠️ Using yesterday's cache - showing average only")
-					Self.logger.info(
-						"   Cache write time: \(todayCache.lastUpdated, privacy: .public)")
 					Self.logger.info(
 						"   Latest sample: \(todayCache.latestSampleTimestamp?.description ?? "nil", privacy: .public)"
 					)
@@ -561,10 +555,13 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			let averageCache = cacheManager.load(for: Weekday.today)
 			let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
 			let projectedTotal = averageCache?.projectedTotal ?? 0
-			let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: todayCache.lastUpdated) ?? 0
+
+			// Use sample timestamp if available, otherwise current time
+			let effectiveDate = todayCache.latestSampleTimestamp ?? date
+			let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: effectiveDate) ?? 0
 
 			return EnergyWidgetEntry(
-				date: todayCache.lastUpdated,
+				date: effectiveDate,
 				todayTotal: todayCache.todayTotal,
 				averageAtCurrentHour: averageAtCurrentHour,
 				projectedTotal: projectedTotal,

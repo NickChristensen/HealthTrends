@@ -46,19 +46,13 @@ struct CacheDebugView: View {
 				if let cache = todayCache {
 					Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
 						GridRow {
-							Text("Last Cache Update:")
-								.foregroundStyle(.secondary)
-								.font(.caption)
-							ToggleableTimestamp(date: cache.lastUpdated)
-						}
-						GridRow {
-							Text("Last Sample Received:")
+							Text("Latest Sample:")
 								.foregroundStyle(.secondary)
 								.font(.caption)
 							if let timestamp = cache.latestSampleTimestamp {
 								ToggleableTimestamp(date: timestamp)
 							} else {
-								Text("N/A")
+								Text("No samples")
 									.foregroundStyle(.tertiary)
 									.font(.caption)
 							}

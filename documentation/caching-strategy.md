@@ -16,12 +16,11 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 - `todayTotal` - Cumulative calories burned today
 - `moveGoal` - Daily active energy goal (iOS supports weekday-specific goals)
 - `todayHourlyData` - Array of hourly cumulative data points
-- `lastUpdated` - Timestamp when cache was written
-- `latestSampleTimestamp` - Timestamp of most recent HealthKit sample (nil if no samples); used to determine actual data freshness separate from cache write time
+- `latestSampleTimestamp` - Timestamp of most recent HealthKit sample (nil if no samples); determines actual data freshness and is used for staleness checks, NOW marker positioning, and average interpolation
 
 **Notes:**
 - Move goal is queried fresh from HealthKit on each refresh; cached value used only as fallback when queries fail.
-- `latestSampleTimestamp` differs from `lastUpdated`: it reflects when HealthKit data is actually from (last sample's end time), not when the cache was written. This distinction matters in delayed-sync scenarios (iPad waiting for iPhone, iPhone waiting for Apple Watch) where cache may be recently written but contain stale data.
+- `latestSampleTimestamp` reflects when HealthKit data is actually from (last sample's end time). This matters in delayed-sync scenarios (iPad waiting for iPhone, iPhone waiting for Apple Watch) where the widget should accurately represent data freshness.
 
 **Update frequency:** Every app refresh (~15 minutes)
 
@@ -209,7 +208,8 @@ After successful authorization:
 - HealthKit queries fail with error code 6
 - Widget falls back to cached data
 - Shows last known state until device unlocked
-- Chart "Now" marker uses `latestSampleTimestamp` (when most recent sample was recorded) instead of `lastUpdated` (when cache was written) to accurately represent data freshness in delayed-sync scenarios
+- Chart "Now" marker uses `latestSampleTimestamp` (when most recent sample was recorded) to accurately represent data freshness in delayed-sync scenarios
+- If no `latestSampleTimestamp` exists, current time is used as fallback
 
 ### Stale Average Cache + Query Failure
 - Widget uses stale weekday cache even if >30 days old (better than nothing)
