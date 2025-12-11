@@ -24,7 +24,7 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 
 **Update frequency:** Every app refresh (~15 minutes)
 
-**Staleness check:** Date comparison (`Calendar.isDate(_:inSameDayAs:)`)
+**Staleness check:** Compares `latestSampleTimestamp` to current date using `Calendar.isDate(_:inSameDayAs:)`. If timestamp is nil, cache is treated as stale (fail-safe behavior).
 
 **Implementation:**
 - Definition: `HealthTrends/Models/SharedEnergyData.swift`
@@ -128,8 +128,10 @@ The widget uses a **hybrid approach** to minimize HealthKit queries while ensuri
 ### Fallback (Device Locked / Query Failed)
 1. Read `SharedEnergyData` for today's data
 2. Read `WeekdayAverageCache` for current weekday's average data
-3. If today cache is from yesterday → show average-only view
-4. If today cache is from today → show full view
+3. Check `latestSampleTimestamp`:
+   - If nil or from previous day → show average-only view
+   - If from today → show full view with cached data
+4. Use `latestSampleTimestamp` for NOW marker and average interpolation (fallback to current time if nil)
 
 **Implementation:** `EnergyWidgetProvider.loadFreshEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:215-471`
 
@@ -163,8 +165,9 @@ After successful authorization:
 ## Cache Invalidation
 
 ### Today Cache
-- Invalidated implicitly by date check
-- Widget shows empty state if cache is from previous day
+- Staleness determined by `latestSampleTimestamp` date comparison (not cache write time)
+- Widget shows average-only view if sample timestamp is from previous day or nil
+- Accurately reflects data age in delayed-sync scenarios (device waiting for sync)
 - No explicit deletion needed (overwrites on next successful fetch)
 
 ### Average Cache (Weekday-Specific)
@@ -206,10 +209,13 @@ After successful authorization:
 
 ### Device Locked
 - HealthKit queries fail with error code 6
-- Widget falls back to cached data
-- Shows last known state until device unlocked
-- Chart "Now" marker uses `latestSampleTimestamp` (when most recent sample was recorded) to accurately represent data freshness in delayed-sync scenarios
-- If no `latestSampleTimestamp` exists, current time is used as fallback
+- Widget falls back to cached data from `SharedEnergyData`
+- Staleness check uses `latestSampleTimestamp` to determine if data is from today
+- Chart NOW marker and average interpolation use `latestSampleTimestamp` (reflects actual sample time, not cache write time)
+- If `latestSampleTimestamp` is nil:
+  - Current time used as fallback for NOW marker and interpolation
+  - Cache treated as stale (shows average-only view)
+  - Warning logged to help diagnose first-install vs delayed-sync scenarios
 
 ### Stale Average Cache + Query Failure
 - Widget uses stale weekday cache even if >30 days old (better than nothing)
@@ -228,7 +234,10 @@ After successful authorization:
 ### Version Migration
 - `WeekdayAverageCache` has `cacheVersion` (currently 2) for container-level changes
 - Individual `AverageDataCache` entries have their own `cacheVersion` (currently 1)
-- Today cache (`SharedEnergyData`) does not have versioning—may need to add if breaking changes required
+- `SharedEnergyData` does not have explicit versioning
+  - Schema changes cause decode failures (treated as missing cache)
+  - Cache automatically regenerates on next app refresh
+  - Brief widget unavailability during transition is acceptable
 - Migration from v1 (`average-data-cache.json`) to v2 (`average-data-cache-v2.json`) happens automatically:
   - Old single-weekday cache ignored
   - New weekday-specific cache populated on first authorization or app refresh
