@@ -106,5 +106,5 @@ gh project item-list 1 --owner "@me" --format json | jq '.items[] | select(.cont
 
 **Labels:**
 - Priority is managed via GitHub Projects Priority field (P0/P1/P2) - NOT labels
-- Type is managed via simple labels: `bug`, `feature`, `improvement`, `chore`
+- Type is managed via simple labels: `bug`, `feature`, `improvement`, `refactor`, `investigation`
 - Old prefixed labels (`priority:*`, `type:*`) have been removed
