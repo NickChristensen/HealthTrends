@@ -209,7 +209,7 @@ struct EnergyChartView: View {
 			todayHourlyData.last?.calories ?? 0,
 			averageHourlyData.last?.calories ?? 0,
 			moveGoal,
-			projectedTotal
+			projectedTotal //TODO: isn't this the same as the above `averageHourlyData.last?.calories ?? 0`? is there a scenario where they're different?
 		)
 	}
 
@@ -261,9 +261,6 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var averageLines: some ChartContent {
-		let darkGray = Color("AverageLineBeforeNowColor")
-		let lightGray = Color("AverageLineAfterNowColor")
-
 		// BEFORE NOW: darker gray line (past data → NOW)
 		ForEach(averageDataBeforeNow) { data in
 			LineMark(
@@ -271,7 +268,7 @@ struct EnergyChartView: View {
 				y: .value("Calories", data.calories),
 				series: .value("Series", "AverageUpToNow")
 			)
-			.foregroundStyle(darkGray)
+			.foregroundStyle(Color("AverageLineBeforeNowColor"))
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.secondaryOpacity)
 		}
@@ -283,7 +280,7 @@ struct EnergyChartView: View {
 				y: .value("Calories", data.calories),
 				series: .value("Series", "AverageRestOfDay")
 			)
-			.foregroundStyle(lightGray)
+			.foregroundStyle(Color("AverageLineAfterNowColor"))
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.tertiaryOpacity)
 		}
@@ -334,6 +331,20 @@ struct EnergyChartView: View {
 			RuleMark(y: .value("Goal", moveGoal))
 				.foregroundStyle(Color("GoalLineColor").opacity(0.5))
 				.lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(
+                    position: .bottom,
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text("\(Int(moveGoal)) cal")
+                        .font(labelFont)
+                        .foregroundStyle(Color("GoalLineColor"))
+                        .offset(x: -2)
+                        .padding(1)
+                        .background(chartBackgroundColor.opacity(0.5))
+                        .cornerRadius(4)
+
+                }
 		}
 	}
 
@@ -393,23 +404,6 @@ struct EnergyChartView: View {
 				}
 				.chartYAxis {
 					AxisMarks {}
-				}
-				.overlay {
-					// Goal label
-					if moveGoal > 0 {
-						let goalYPosition = chartHeight * (1 - moveGoal / maxValue)
-
-						Text("\(Int(moveGoal)) cal")
-							.font(labelFont)
-							.fontWeight(.bold)
-							.foregroundStyle(Color("GoalLineColor"))
-                            .offset(x: -4, y: goalYPosition)
-                            .padding(4)
-                            .background(chartBackgroundColor)
-							.frame(
-								maxWidth: .infinity, maxHeight: .infinity,
-								alignment: .topLeading)
-					}
 				}
 
 				// X-axis labels below chart (fixed height)
