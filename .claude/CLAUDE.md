@@ -287,74 +287,16 @@ HealthTrendsShared/
 2. **Alternative**: Use scaffolding tools like `mcp__XcodeBuildMCP__scaffold_ios_project`
 3. **Last resort**: Only manually edit `.pbxproj` for small tweaks after target is created
 
-## Terminology
-This document defines the key metrics used throughout the app to avoid confusion.
+## Product Requirements & Terminology
 
-### "Today"
-**Definition:** Cumulative calories burned from midnight to the current time.
+> **See [PRD.md](../documentation/PRD.md)** for complete product requirements, feature specifications, and detailed metric definitions.
 
-**Example:** At 1:00 PM, if you've burned:
-- 0-1 AM: 10 cal
-- 1-2 AM: 5 cal
-- ...
-- 12-1 PM: 217 cal
+### Quick Reference: Core Metrics
 
-Then "Today" = 467 cal (total from midnight to 1 PM)
+The app displays three key metrics (full definitions in PRD):
 
-**In Code:**
-- `todayTotal: Double` - Current cumulative total
-- `todayHourlyData: [HourlyEnergyData]` - Cumulative values at each hour
-  - Example: `[10, 15, ..., 250, 467]` (running sum)
+1. **"Today"** (`todayTotal: Double`) - Cumulative calories burned from midnight to now
+2. **"Average"** (`averageHourlyData: [HourlyEnergyData]`) - Typical calories burned by this hour, calculated from last ~10 occurrences of current weekday
+3. **"Total"** (`projectedTotal: Double`) - Average of complete daily totals from matching weekdays (where you'll likely end up)
 
----
-
-### "Average"
-**Definition:** The average cumulative calories burned BY each hour, calculated across the last ~10 occurrences of the current weekday (excluding today).
-
-**Example:** At 1:00 PM on a Saturday:
-- Saturday 1: burned 400 cal by 1 PM
-- Saturday 2: burned 380 cal by 1 PM
-- ...
-- Saturday 10: burned 395 cal by 1 PM
-
-Then "Average" at 1 PM = (400 + 380 + ... + 395) / 10 = 389 cal
-
-**In Code:**
-- `averageHourlyData: [HourlyEnergyData]` - Average cumulative values at each hour
-  - For hour H: average of (saturday1_total_by_H + saturday2_total_by_H + ... + saturday10_total_by_H) / 10
-  - Example: `[8, 12, ..., 350, 389]` (cumulative averages)
-
-**Display:** Show the value at the current hour (e.g., 389 cal at 1 PM)
-
-**Note:** Uses weekday filtering to account for weekday variability in activity patterns and schedules.
-
----
-
-### "Total"
-**Definition:** The average of complete daily totals from the last ~10 occurrences of the current weekday (excluding today).
-
-**Example:** On a Saturday:
-- Saturday 1: burned 1,050 cal (full day)
-- Saturday 2: burned 1,020 cal (full day)
-- ...
-- Saturday 10: burned 1,032 cal (full day)
-
-Then "Total" = (1,050 + 1,020 + ... + 1,032) / 10 = 1,034 cal
-
-**In Code:**
-- `projectedTotal: Double` - Average of complete daily totals for matching weekdays
-  - This represents where you'd end up at midnight if you follow the average pattern
-
-**Visual:** Shown as a horizontal green line on the chart and a green statistic
-
----
-
-## Why This Matters
-
-These three metrics answer different questions:
-
-1. **"Today"**: How much have I burned so far?
-2. **"Average"**: How much had I typically burned by this time of day?
-3. **"Total"**: If I follow my average pattern, where will I end up?
-
-The distinction between "Average" (cumulative by hour) and "Total" (daily average) is critical for accurate graphing and projections.
+**Why it matters:** These metrics answer "How much have I burned?", "Am I on pace?", and "Where will I end up?" The distinction between "Average" (cumulative by hour) and "Total" (daily average) is critical for accurate graphing and projections.
