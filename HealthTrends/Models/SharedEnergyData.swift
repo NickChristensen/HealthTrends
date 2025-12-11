@@ -6,7 +6,6 @@ struct SharedEnergyData: Codable {
 	let todayTotal: Double
 	let moveGoal: Double
 	let todayHourlyData: [SerializableHourlyEnergyData]
-	let lastUpdated: Date
 	let latestSampleTimestamp: Date?  // Timestamp of most recent HealthKit sample
 
 	/// Codable version of HourlyEnergyData
@@ -59,7 +58,6 @@ final class SharedEnergyDataManager {
 			todayTotal: todayTotal,
 			moveGoal: moveGoal,
 			todayHourlyData: todayHourlyData.map { .init(from: $0) },
-			lastUpdated: Date(),
 			latestSampleTimestamp: latestSampleTimestamp
 		)
 
