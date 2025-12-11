@@ -17,8 +17,11 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 - `moveGoal` - Daily active energy goal (iOS supports weekday-specific goals)
 - `todayHourlyData` - Array of hourly cumulative data points
 - `lastUpdated` - Timestamp when cache was written
+- `latestSampleTimestamp` - Timestamp of most recent HealthKit sample (nil if no samples); used to determine actual data freshness separate from cache write time
 
-**Note:** Move goal is queried fresh from HealthKit on each refresh; cached value used only as fallback when queries fail.
+**Notes:**
+- Move goal is queried fresh from HealthKit on each refresh; cached value used only as fallback when queries fail.
+- `latestSampleTimestamp` differs from `lastUpdated`: it reflects when HealthKit data is actually from (last sample's end time), not when the cache was written. This distinction matters in delayed-sync scenarios (iPad waiting for iPhone, iPhone waiting for Apple Watch) where cache may be recently written but contain stale data.
 
 **Update frequency:** Every app refresh (~15 minutes)
 
@@ -26,12 +29,13 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 
 **Implementation:**
 - Definition: `HealthTrends/Models/SharedEnergyData.swift`
-- Writer: `HealthKitManager.fetchEnergyData()` at `HealthTrends/Managers/HealthKitManager.swift:224-228`
+- Query service: `HealthKitQueryService.fetchTodayHourlyTotals()` returns tuple with data and `latestSampleTimestamp` extracted from most recent sample's `endDate`
+- Writer: `HealthKitManager.fetchEnergyData()` and `EnergyWidgetProvider.loadFreshEntry()` (both write cache with `latestSampleTimestamp`)
 - Readers:
-  - App authorization check: `HealthKitManager.verifyReadAuthorization()` at `HealthTrends/Managers/HealthKitManager.swift:67-87`
-  - Widget fallback: `EnergyWidgetProvider.loadFreshEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:252-318`
-  - Widget gallery: `EnergyWidgetProvider.loadCachedEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:474-512`
-  - Move goal lookup: `EnergyWidgetProvider.loadCachedMoveGoal()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:515-522`
+  - App authorization check: `HealthKitManager.verifyReadAuthorization()`
+  - Widget fallback: `EnergyWidgetProvider.loadFreshEntry()`
+  - Widget gallery: `EnergyWidgetProvider.loadCachedEntry()`
+  - Move goal lookup: `EnergyWidgetProvider.loadCachedMoveGoal()`
 
 ### Average Data Cache (WeekdayAverageCache)
 
@@ -205,6 +209,7 @@ After successful authorization:
 - HealthKit queries fail with error code 6
 - Widget falls back to cached data
 - Shows last known state until device unlocked
+- Chart "Now" marker uses `latestSampleTimestamp` (when most recent sample was recorded) instead of `lastUpdated` (when cache was written) to accurately represent data freshness in delayed-sync scenarios
 
 ### Stale Average Cache + Query Failure
 - Widget uses stale weekday cache even if >30 days old (better than nothing)
