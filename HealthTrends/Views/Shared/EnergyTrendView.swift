@@ -11,7 +11,7 @@ struct EnergyTrendView: View {
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
 	let projectedTotal: Double
-	let effectiveNow: Date  // Timestamp representing "now" for the chart
+	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
@@ -47,23 +47,22 @@ struct EnergyTrendView: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
-                .fixedSize(horizontal: true, vertical: true)
-                .padding(16)
-//                Removing this in favor of fixed size above. Pick one.
-//                .containerRelativeFrame(.horizontal) { length, _ in
-//                    return length * 0.333
-//                }
-
+				.fixedSize(horizontal: true, vertical: true)
+				.padding(16)
+				//                Removing this in favor of fixed size above. Pick one.
+				//                .containerRelativeFrame(.horizontal) { length, _ in
+				//                    return length * 0.333
+				//                }
 
 				EnergyChartView(
 					todayHourlyData: todayHourlyData,
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					projectedTotal: projectedTotal,
-					effectiveNow: effectiveNow
+					dataTime: dataTime
 				)
 				.padding(16)
-                .background(chartBackgroundColor)
+				.background(chartBackgroundColor)
 				.frame(maxWidth: .infinity)
 			}
 		} else {
@@ -101,10 +100,10 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					projectedTotal: projectedTotal,
-					effectiveNow: effectiveNow
+					dataTime: dataTime
 				)
 				.padding(.horizontal, 16)
-                .padding(.top, spacing)
+				.padding(.top, spacing)
 				.background(chartBackgroundColor)
 				.frame(maxHeight: .infinity)
 			}

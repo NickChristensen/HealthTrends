@@ -159,7 +159,7 @@ final class HealthKitManager {
 		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
 		let calendar = Calendar.current
 		let now = Date()
-		let effectiveNow = now.addingTimeInterval(-dataAge)
+		let dataTime = now.addingTimeInterval(-dataAge)
 
 		// Generate data for the past 60 days
 		var samplesToSave: [HKQuantitySample] = []
@@ -172,10 +172,10 @@ final class HealthKitManager {
 				continue
 			}
 
-			// For today (dayOffset == 0), only generate up to effectiveNow
+			// For today (dayOffset == 0), only generate up to dataTime
 			// For past days, generate all 24 hours
-			let currentHour = calendar.component(.hour, from: effectiveNow)
-			let currentMinute = calendar.component(.minute, from: effectiveNow)
+			let currentHour = calendar.component(.hour, from: dataTime)
+			let currentMinute = calendar.component(.minute, from: dataTime)
 			let maxHour = dayOffset == 0 ? currentHour : 23
 
 			// Generate hourly data points for each day
@@ -184,8 +184,8 @@ final class HealthKitManager {
 					continue
 				}
 
-				// Don't generate data beyond effectiveNow
-				guard hourStart <= effectiveNow else {
+				// Don't generate data beyond dataTime
+				guard hourStart <= dataTime else {
 					continue
 				}
 
@@ -195,7 +195,7 @@ final class HealthKitManager {
 
 				if isCurrentHour && currentMinute > 0 {
 					// Generate partial hour up to the exact minute
-					hourEnd = effectiveNow
+					hourEnd = dataTime
 				} else {
 					// Generate full hour
 					hourEnd = calendar.date(byAdding: .hour, value: 1, to: hourStart)!
