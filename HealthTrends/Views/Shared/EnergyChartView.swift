@@ -7,13 +7,6 @@ import WidgetKit
 
 private let lineWidth: CGFloat = 4
 
-/// Debug: Override current time for testing. Set to nil to use real time.
-/// Examples:
-/// - Calendar.current.date(from: DateComponents(hour: 2, minute: 10))  // 2:10 AM
-/// - Calendar.current.date(from: DateComponents(hour: 4, minute: 30))  // 4:30 AM
-/// - Calendar.current.date(from: DateComponents(hour: 13, minute: 40)) // 1:40 PM
-private let debugNowOverride: Date? = nil
-
 // MARK: - Helper Functions
 
 /// Encapsulates Data Time label positioning calculations
@@ -195,7 +188,7 @@ struct EnergyChartView: View {
 
 	// MARK: - Computed Data Properties
 
-	/// Cleaned average data (removes stale NOW points from cached data)
+	/// Cleaned average data (removes stale Data Time points from cached data)
 	/// Filters out interpolated points that may have been cached by widgets
 	private var cleanedAverageData: [HourlyEnergyData] {
 		averageHourlyData.filter { data in
@@ -213,7 +206,7 @@ struct EnergyChartView: View {
 	}
 
 	/// Average data from start of day up to Data Time (includes interpolated Data Time point)
-	private var averageDataBeforeNow: [HourlyEnergyData] {
+	private var averageDataBeforeDataTime: [HourlyEnergyData] {
 		var data = cleanedAverageData.filter { $0.hour <= startOfCurrentHour }
 		if let interpolated = interpolatedAverageAtDataTime {
 			data.append(interpolated)
@@ -222,7 +215,7 @@ struct EnergyChartView: View {
 	}
 
 	/// Average data from Data Time to end of day (includes interpolated Data Time point)
-	private var averageDataAfterNow: [HourlyEnergyData] {
+	private var averageDataAfterDataTime: [HourlyEnergyData] {
 		var data: [HourlyEnergyData] = []
 
 		// Start with interpolated Data Time point
@@ -242,7 +235,7 @@ struct EnergyChartView: View {
 	@ChartContentBuilder
 	private var averageLines: some ChartContent {
 		// BEFORE Data Time: darker gray line (past data → Data Time)
-		ForEach(averageDataBeforeNow) { data in
+		ForEach(averageDataBeforeDataTime) { data in
 			LineMark(
 				x: .value("Hour", data.hour),
 				y: .value("Calories", data.calories),
@@ -254,7 +247,7 @@ struct EnergyChartView: View {
 		}
 
 		// AFTER Data Time: lighter gray line (Data Time → future data)
-		ForEach(averageDataAfterNow) { data in
+		ForEach(averageDataAfterDataTime) { data in
 			LineMark(
 				x: .value("Hour", data.hour),
 				y: .value("Calories", data.calories),
