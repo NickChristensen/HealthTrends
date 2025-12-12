@@ -13,11 +13,12 @@ struct SharedEnergyData: Codable {
 	/// - Parameters:
 	///   - todayTotal: Total calories burned today (must be non-negative)
 	///   - moveGoal: Daily move goal in calories (must be non-negative)
-	///   - todayHourlyData: Array of hourly energy data (must be cumulative)
+	///   - todayHourlyData: Array of hourly energy data (must be cumulative/monotonic)
 	///   - latestSampleTimestamp: Timestamp of most recent HealthKit sample
 	///
 	/// - Precondition: todayTotal must be non-negative
 	/// - Precondition: moveGoal must be non-negative
+	/// - Precondition: Hourly data must be monotonically increasing (cumulative)
 	/// - Precondition: todayTotal must match the last hourly value when hourly data exists
 	/// - Precondition: todayTotal must be 0 when hourly data is empty
 	init(
@@ -29,19 +30,57 @@ struct SharedEnergyData: Codable {
 		precondition(todayTotal >= 0, "todayTotal must be non-negative")
 		precondition(moveGoal >= 0, "moveGoal must be non-negative")
 
+		// Validate hourly data is monotonically increasing (cumulative)
+		for i in 1..<todayHourlyData.count {
+			let previous = todayHourlyData[i - 1].calories
+			let current = todayHourlyData[i].calories
+			precondition(
+				current >= previous,
+				"Hourly data must be cumulative: hour \(i) has \(current) cal, but previous hour had \(previous) cal"
+			)
+		}
+
 		if let lastHourCalories = todayHourlyData.last?.calories {
 			precondition(
 				abs(lastHourCalories - todayTotal) < 0.01,
 				"todayTotal (\(todayTotal)) must match last hourly value (\(lastHourCalories))"
 			)
 		} else {
-			precondition(todayTotal == 0, "todayTotal must be 0 when hourly data is empty")
+			precondition(abs(todayTotal) < 0.01, "todayTotal must be 0 when hourly data is empty")
 		}
 
 		self.todayTotal = todayTotal
 		self.moveGoal = moveGoal
 		self.todayHourlyData = todayHourlyData
 		self.latestSampleTimestamp = latestSampleTimestamp
+	}
+
+	/// Custom Decodable implementation to ensure validation during JSON decoding
+	///
+	/// This ensures that validation rules are enforced even when loading data from
+	/// the shared container, not just when creating instances programmatically.
+	init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		let todayTotal = try container.decode(Double.self, forKey: .todayTotal)
+		let moveGoal = try container.decode(Double.self, forKey: .moveGoal)
+		let todayHourlyData = try container.decode(
+			[SerializableHourlyEnergyData].self, forKey: .todayHourlyData)
+		let latestSampleTimestamp = try container.decodeIfPresent(Date.self, forKey: .latestSampleTimestamp)
+
+		// Call the validated initializer
+		self.init(
+			todayTotal: todayTotal,
+			moveGoal: moveGoal,
+			todayHourlyData: todayHourlyData,
+			latestSampleTimestamp: latestSampleTimestamp
+		)
+	}
+
+	private enum CodingKeys: String, CodingKey {
+		case todayTotal
+		case moveGoal
+		case todayHourlyData
+		case latestSampleTimestamp
 	}
 
 	/// Codable version of HourlyEnergyData
