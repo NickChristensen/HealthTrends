@@ -8,6 +8,42 @@ struct SharedEnergyData: Codable {
 	let todayHourlyData: [SerializableHourlyEnergyData]
 	let latestSampleTimestamp: Date?  // Timestamp of most recent HealthKit sample
 
+	/// Creates a SharedEnergyData instance with validation
+	///
+	/// - Parameters:
+	///   - todayTotal: Total calories burned today (must be non-negative)
+	///   - moveGoal: Daily move goal in calories (must be non-negative)
+	///   - todayHourlyData: Array of hourly energy data (must be cumulative)
+	///   - latestSampleTimestamp: Timestamp of most recent HealthKit sample
+	///
+	/// - Precondition: todayTotal must be non-negative
+	/// - Precondition: moveGoal must be non-negative
+	/// - Precondition: todayTotal must match the last hourly value when hourly data exists
+	/// - Precondition: todayTotal must be 0 when hourly data is empty
+	init(
+		todayTotal: Double,
+		moveGoal: Double,
+		todayHourlyData: [SerializableHourlyEnergyData],
+		latestSampleTimestamp: Date? = nil
+	) {
+		precondition(todayTotal >= 0, "todayTotal must be non-negative")
+		precondition(moveGoal >= 0, "moveGoal must be non-negative")
+
+		if let lastHourCalories = todayHourlyData.last?.calories {
+			precondition(
+				abs(lastHourCalories - todayTotal) < 0.01,
+				"todayTotal (\(todayTotal)) must match last hourly value (\(lastHourCalories))"
+			)
+		} else {
+			precondition(todayTotal == 0, "todayTotal must be 0 when hourly data is empty")
+		}
+
+		self.todayTotal = todayTotal
+		self.moveGoal = moveGoal
+		self.todayHourlyData = todayHourlyData
+		self.latestSampleTimestamp = latestSampleTimestamp
+	}
+
 	/// Codable version of HourlyEnergyData
 	struct SerializableHourlyEnergyData: Codable {
 		let hour: Date
