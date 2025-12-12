@@ -284,8 +284,11 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				// Determine effectiveDate: use sample timestamp if available, otherwise current time
 				let effectiveDate = todayCache.latestSampleTimestamp ?? date
 				if todayCache.latestSampleTimestamp == nil {
-					Self.logger.warning("⚠️ No sample timestamp in cache - using current time as fallback")
-					Self.logger.warning("   This may indicate: first install, no activity data, or cache corruption")
+					Self.logger.warning(
+						"⚠️ No sample timestamp in cache - using current time as fallback")
+					Self.logger.warning(
+						"   This may indicate: first install, no activity data, or cache corruption"
+					)
 				}
 				let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: effectiveDate) ?? 0
 
@@ -564,7 +567,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			// Use sample timestamp if available, otherwise current time
 			let effectiveDate = todayCache.latestSampleTimestamp ?? date
 			if todayCache.latestSampleTimestamp == nil {
-				Self.logger.warning("⚠️ Widget gallery: No sample timestamp in cache - using current time")
+				Self.logger.warning(
+					"⚠️ Widget gallery: No sample timestamp in cache - using current time")
 			}
 			let averageAtCurrentHour = averageHourlyData.interpolatedValue(at: effectiveDate) ?? 0
 
@@ -665,7 +669,7 @@ struct DailyActiveEnergyWidgetEntryView: View {
 			averageHourlyData: entry.averageHourlyData,
 			moveGoal: entry.moveGoal,
 			projectedTotal: entry.projectedTotal,
-			effectiveNow: entry.date
+			dataTime: entry.date
 		)
 	}
 }

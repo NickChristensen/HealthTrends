@@ -7,53 +7,73 @@ import WidgetKit
 
 private let lineWidth: CGFloat = 4
 
-/// Debug: Override current time for testing. Set to nil to use real time.
-/// Examples:
-/// - Calendar.current.date(from: DateComponents(hour: 2, minute: 10))  // 2:10 AM
-/// - Calendar.current.date(from: DateComponents(hour: 4, minute: 30))  // 4:30 AM
-/// - Calendar.current.date(from: DateComponents(hour: 13, minute: 40)) // 1:40 PM
-private let debugNowOverride: Date? = nil
-
 // MARK: - Helper Functions
 
-/// Helper to get current time (or debug override)
-private func getCurrentTime() -> Date {
-	if let override = debugNowOverride {
+/// Encapsulates Data Time label positioning calculations
+private struct DataTimeLabelPosition {
+	let position: CGFloat  // Natural x-position on chart (0...chartWidth)
+	let labelWidth: CGFloat
+	let chartWidth: CGFloat
+
+	init(dataTime: Date, chartWidth: CGFloat) {
 		let calendar = Calendar.current
-		let today = calendar.startOfDay(for: Date())
-		let components = calendar.dateComponents([.hour, .minute], from: override)
-		return calendar.date(byAdding: components, to: today) ?? Date()
+		let startOfDay = calendar.startOfDay(for: dataTime)
+		let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
+		let dayDuration = TimeInterval(24 * 60 * 60)
+
+		self.position = chartWidth * (dataTimeOffset / dayDuration)
+		self.chartWidth = chartWidth
+
+		let dataTimeFormatter = Date.FormatStyle().hour().minute()
+		let dataTimeLabelText = dataTime.formatted(dataTimeFormatter)
+		self.labelWidth = measureTextWidth(dataTimeLabelText, textStyle: .caption1)
 	}
-	return Date()
+
+	var leftEdge: CGFloat { position - labelWidth / 2 }
+	var rightEdge: CGFloat { position + labelWidth / 2 }
+
+	var wouldOverflowLeft: Bool { leftEdge < 0 }
+	var wouldOverflowRight: Bool { rightEdge > chartWidth }
+	var wouldOverflow: Bool { wouldOverflowLeft || wouldOverflowRight }
+
+	/// Alignment for the label text
+	var alignment: Alignment {
+		if wouldOverflowLeft {
+			return .leading
+		} else if wouldOverflowRight {
+			return .trailing
+		} else {
+			return .center
+		}
+	}
+
+	/// X-offset to position the label
+	var offset: CGFloat {
+		if wouldOverflow {
+			return 0  // Edge-aligned, no offset needed
+		} else {
+			return position - chartWidth / 2  // Centered with offset
+		}
+	}
 }
 
-/// Helper to determine if NOW label collides with start/end of day labels
-private func calculateLabelCollisions(chartWidth: CGFloat, now: Date) -> (hidesStart: Bool, hidesEnd: Bool) {
+/// Helper to determine if Data Time label collides with start/end of day labels
+private func calculateLabelCollisions(chartWidth: CGFloat, dataTime: Date) -> (hidesStart: Bool, hidesEnd: Bool) {
+	let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
+
 	let calendar = Calendar.current
-	let startOfDay = calendar.startOfDay(for: now)
-	let nowOffset = now.timeIntervalSince(startOfDay)
-	let dayDuration = TimeInterval(24 * 60 * 60)
-	let nowPosition = chartWidth * (nowOffset / dayDuration)
-
-	// Measure actual text widths for accurate collision detection
-	let nowFormatter = Date.FormatStyle().hour().minute()
-	let nowLabelText = now.formatted(nowFormatter)
-	let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
-
+	let startOfDay = calendar.startOfDay(for: dataTime)
 	let hourFormatter = Date.FormatStyle().hour()
 	let startLabelText = startOfDay.formatted(hourFormatter)
 	let startEndLabelWidth = measureTextWidth(startLabelText, textStyle: .caption1)
 
 	let minSeparation: CGFloat = 4
 
-	let nowLeft = nowPosition - nowLabelWidth / 2
-	let nowRight = nowPosition + nowLabelWidth / 2
-
 	let startLabelRight = startEndLabelWidth
-	let hidesStart = nowLeft < (startLabelRight + minSeparation)
+	let hidesStart = labelPos.leftEdge < (startLabelRight + minSeparation)
 
 	let endLabelLeft = chartWidth - startEndLabelWidth
-	let hidesEnd = nowRight > (endLabelLeft - minSeparation)
+	let hidesEnd = labelPos.rightEdge > (endLabelLeft - minSeparation)
 
 	return (hidesStart, hidesEnd)
 }
@@ -63,19 +83,19 @@ private func calculateLabelCollisions(chartWidth: CGFloat, now: Date) -> (hidesS
 /// X-axis labels component (start of day, current hour, end of day)
 private struct ChartXAxisLabels: View {
 	let chartWidth: CGFloat
-	let effectiveNow: Date  // Timestamp representing "now" for the chart
+	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 	let labelFont: Font  // Font size for labels
 
 	@Environment(\.widgetFamily) private var widgetFamily
 
 	private var calendar: Calendar { Calendar.current }
-	private var now: Date { effectiveNow }
 
 	var body: some View {
 		ZStack(alignment: .bottom) {
 			let startOfDay = calendar.startOfDay(for: Date())
 			let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-			let collisions = calculateLabelCollisions(chartWidth: chartWidth, now: now)
+			let collisions = calculateLabelCollisions(chartWidth: chartWidth, dataTime: dataTime)
+			let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
 
 			// Start of day - left aligned (hide if collides with current hour or not systemLarge)
 			if !collisions.hidesStart {
@@ -85,58 +105,12 @@ private struct ChartXAxisLabels: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 			}
 
-			// NOW - centered at natural position, but edge-aligned if that would go out of bounds
-			Text(now, format: .dateTime.hour().minute())
+			// Data Time - centered at natural position, but edge-aligned if that would go out of bounds
+			Text(dataTime, format: .dateTime.hour().minute())
 				.font(labelFont)
 				.foregroundStyle(.secondary)
-				.frame(
-					maxWidth: .infinity,
-					alignment: {
-						let startOfDay = calendar.startOfDay(for: now)
-						let nowOffset = now.timeIntervalSince(startOfDay)
-						let dayDuration = TimeInterval(24 * 60 * 60)
-						let nowPosition = chartWidth * (nowOffset / dayDuration)
-
-						// Measure actual text width for accurate positioning
-						let nowFormatter = Date.FormatStyle().hour().minute()
-						let nowLabelText = now.formatted(nowFormatter)
-						let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
-
-						// Check if centering would put label out of bounds
-						let centeredLeft = nowPosition - nowLabelWidth / 2
-						let centeredRight = nowPosition + nowLabelWidth / 2
-
-						if centeredLeft < 0 {
-							return .leading  // Too close to left edge
-						} else if centeredRight > chartWidth {
-							return .trailing  // Too close to right edge
-						} else {
-							return .center  // Safe to center
-						}
-					}()
-				)
-				.offset(
-					x: {
-						let startOfDay = calendar.startOfDay(for: now)
-						let nowOffset = now.timeIntervalSince(startOfDay)
-						let dayDuration = TimeInterval(24 * 60 * 60)
-						let nowPosition = chartWidth * (nowOffset / dayDuration)
-
-						// Measure actual text width for accurate positioning
-						let nowFormatter = Date.FormatStyle().hour().minute()
-						let nowLabelText = now.formatted(nowFormatter)
-						let nowLabelWidth = measureTextWidth(nowLabelText, textStyle: .caption1)
-
-						// Check if centering would put label out of bounds
-						let centeredLeft = nowPosition - nowLabelWidth / 2
-						let centeredRight = nowPosition + nowLabelWidth / 2
-
-						if centeredLeft < 0 || centeredRight > chartWidth {
-							return 0  // Edge-aligned, no offset needed
-						} else {
-							return nowPosition - chartWidth / 2  // Centered with offset
-						}
-					}())
+				.frame(maxWidth: .infinity, alignment: labelPos.alignment)
+				.offset(x: labelPos.offset)
 
 			// End of day - right aligned (hide if collides with current hour or not systemLarge)
 			if !collisions.hidesEnd {
@@ -157,35 +131,34 @@ struct EnergyChartView: View {
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
 	let projectedTotal: Double
-	let effectiveNow: Date  // Timestamp representing "now" for the chart
+	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
 
 	private var calendar: Calendar { Calendar.current }
-	private var now: Date { effectiveNow }
-	private var currentHour: Int { calendar.component(.hour, from: now) }
+	private var currentHour: Int { calendar.component(.hour, from: dataTime) }
 	private var startOfCurrentHour: Date {
-		calendar.dateInterval(of: .hour, for: now)!.start
+		calendar.dateInterval(of: .hour, for: dataTime)!.start
 	}
 
-    private var chartBackgroundColor: Color {
-        widgetRenderingMode == .accented ? .clear : Color("AppBackground")
-    }
+	private var chartBackgroundColor: Color {
+		widgetRenderingMode == .accented ? .clear : Color("AppBackground")
+	}
 
 	private var labelFont: Font {
 		widgetFamily == .systemLarge || widgetFamily == .systemExtraLarge ? .caption : .caption2
 	}
 
 	/// Renders an hourly tick mark with appropriate styling
-	/// Returns nothing if the hour is too close to NOW (within 20 minutes)
+	/// Returns nothing if the hour is too close to Data Time (within 20 minutes)
 	@AxisMarkBuilder
 	private func hourlyTickMark(
 		for date: Date, startOfDay: Date, endOfDay: Date, collisions: (hidesStart: Bool, hidesEnd: Bool),
-		now: Date
+		dataTime: Date
 	) -> some AxisMark {
-		let minutesFromNow = abs(date.timeIntervalSince(now)) / 60
-		if minutesFromNow >= 20 {
+		let minutesFromDataTime = abs(date.timeIntervalSince(dataTime)) / 60
+		if minutesFromDataTime >= 20 {
 			let isStartOfDay = abs(date.timeIntervalSince(startOfDay)) < 60
 			let isEndOfDay = abs(date.timeIntervalSince(endOfDay)) < 60
 			let showTickLine =
@@ -209,13 +182,13 @@ struct EnergyChartView: View {
 			todayHourlyData.last?.calories ?? 0,
 			averageHourlyData.last?.calories ?? 0,
 			moveGoal,
-			projectedTotal //TODO: isn't this the same as the above `averageHourlyData.last?.calories ?? 0`? is there a scenario where they're different?
+			projectedTotal  //TODO: isn't this the same as the above `averageHourlyData.last?.calories ?? 0`? is there a scenario where they're different?
 		)
 	}
 
 	// MARK: - Computed Data Properties
 
-	/// Cleaned average data (removes stale NOW points from cached data)
+	/// Cleaned average data (removes stale Data Time points from cached data)
 	/// Filters out interpolated points that may have been cached by widgets
 	private var cleanedAverageData: [HourlyEnergyData] {
 		averageHourlyData.filter { data in
@@ -224,29 +197,29 @@ struct EnergyChartView: View {
 		}
 	}
 
-	/// Calculate interpolated average value at current time
-	private var interpolatedAverageAtNow: HourlyEnergyData? {
-		guard let interpolatedCalories = averageHourlyData.interpolatedValue(at: now) else {
+	/// Calculate interpolated average value at data time
+	private var interpolatedAverageAtDataTime: HourlyEnergyData? {
+		guard let interpolatedCalories = averageHourlyData.interpolatedValue(at: dataTime) else {
 			return nil
 		}
-		return HourlyEnergyData(hour: now, calories: interpolatedCalories)
+		return HourlyEnergyData(hour: dataTime, calories: interpolatedCalories)
 	}
 
-	/// Average data from start of day up to NOW (includes interpolated NOW point)
-	private var averageDataBeforeNow: [HourlyEnergyData] {
+	/// Average data from start of day up to Data Time (includes interpolated Data Time point)
+	private var averageDataBeforeDataTime: [HourlyEnergyData] {
 		var data = cleanedAverageData.filter { $0.hour <= startOfCurrentHour }
-		if let interpolated = interpolatedAverageAtNow {
+		if let interpolated = interpolatedAverageAtDataTime {
 			data.append(interpolated)
 		}
 		return data
 	}
 
-	/// Average data from NOW to end of day (includes interpolated NOW point)
-	private var averageDataAfterNow: [HourlyEnergyData] {
+	/// Average data from Data Time to end of day (includes interpolated Data Time point)
+	private var averageDataAfterDataTime: [HourlyEnergyData] {
 		var data: [HourlyEnergyData] = []
 
-		// Start with interpolated NOW point
-		if let interpolated = interpolatedAverageAtNow {
+		// Start with interpolated Data Time point
+		if let interpolated = interpolatedAverageAtDataTime {
 			data.append(interpolated)
 		}
 
@@ -261,8 +234,8 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var averageLines: some ChartContent {
-		// BEFORE NOW: darker gray line (past data → NOW)
-		ForEach(averageDataBeforeNow) { data in
+		// BEFORE Data Time: darker gray line (past data → Data Time)
+		ForEach(averageDataBeforeDataTime) { data in
 			LineMark(
 				x: .value("Hour", data.hour),
 				y: .value("Calories", data.calories),
@@ -273,8 +246,8 @@ struct EnergyChartView: View {
 			.opacity(widgetRenderingMode.secondaryOpacity)
 		}
 
-		// AFTER NOW: lighter gray line (NOW → future data)
-		ForEach(averageDataAfterNow) { data in
+		// AFTER Data Time: lighter gray line (Data Time → future data)
+		ForEach(averageDataAfterDataTime) { data in
 			LineMark(
 				x: .value("Hour", data.hour),
 				y: .value("Calories", data.calories),
@@ -302,8 +275,8 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var averagePoint: some ChartContent {
-		// Show average point at NOW (interpolated value)
-		if let interpolated = interpolatedAverageAtNow {
+		// Show average point at Data Time (interpolated value)
+		if let interpolated = interpolatedAverageAtDataTime {
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
@@ -315,11 +288,11 @@ struct EnergyChartView: View {
 	@ChartContentBuilder
 	private var todayPoint: some ChartContent {
 		if let last = todayHourlyData.last {
-			// Use NOW for x-position to align with average point and now line
-			PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(
-                chartBackgroundColor
+			// Use Data Time for x-position to align with average point and data time line
+			PointMark(x: .value("Hour", dataTime), y: .value("Calories", last.calories)).foregroundStyle(
+				chartBackgroundColor
 			).symbolSize(256)
-			PointMark(x: .value("Hour", now), y: .value("Calories", last.calories)).foregroundStyle(
+			PointMark(x: .value("Hour", dataTime), y: .value("Calories", last.calories)).foregroundStyle(
 				Color("AccentColor")
 			).symbolSize(100).opacity(widgetRenderingMode.primaryOpacity)
 		}
@@ -331,26 +304,26 @@ struct EnergyChartView: View {
 			RuleMark(y: .value("Goal", moveGoal))
 				.foregroundStyle(Color("GoalLineColor").opacity(0.5))
 				.lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .annotation(
-                    position: .bottom,
-                    alignment: .leading,
-                    spacing: 2
-                ) {
-                    Text("\(Int(moveGoal)) cal")
-                        .font(labelFont)
-                        .foregroundStyle(Color("GoalLineColor"))
-                        .offset(x: -2)
-                        .padding(1)
-                        .background(chartBackgroundColor.opacity(0.5))
-                        .cornerRadius(4)
+				.annotation(
+					position: .bottom,
+					alignment: .leading,
+					spacing: 2
+				) {
+					Text("\(Int(moveGoal)) cal")
+						.font(labelFont)
+						.foregroundStyle(Color("GoalLineColor"))
+						.offset(x: -2)
+						.padding(1)
+						.background(chartBackgroundColor.opacity(0.5))
+						.cornerRadius(4)
 
-                }
+				}
 		}
 	}
 
 	@ChartContentBuilder
-	private var nowLine: some ChartContent {
-		RuleMark(x: .value("Now", now))
+	private var dataTimeLine: some ChartContent {
+		RuleMark(x: .value("Now", dataTime))
 			.foregroundStyle(Color("NowLineColor"))
 			.lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.tertiaryOpacity)
@@ -365,7 +338,7 @@ struct EnergyChartView: View {
 			VStack(spacing: 0) {
 				// Chart with flexible height
 				Chart {
-					nowLine
+					dataTimeLine
 					goalLine
 					averageLines
 					todayLine
@@ -382,19 +355,20 @@ struct EnergyChartView: View {
 					// Calculate constants once (not 24 times per render!)
 					let startOfDay = calendar.startOfDay(for: Date())
 					let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-					let collisions = calculateLabelCollisions(chartWidth: chartWidth, now: now)
+					let collisions = calculateLabelCollisions(
+						chartWidth: chartWidth, dataTime: dataTime)
 
 					// Hourly tick marks
 					AxisMarks(values: .stride(by: .hour, count: 1)) { value in
 						if let date = value.as(Date.self) {
 							hourlyTickMark(
 								for: date, startOfDay: startOfDay, endOfDay: endOfDay,
-								collisions: collisions, now: now)
+								collisions: collisions, dataTime: dataTime)
 						}
 					}
 
-					// NOW tick mark (matches labeled hour styling)
-					AxisMarks(values: [now]) { _ in
+					// Data Time tick mark (matches labeled hour styling)
+					AxisMarks(values: [dataTime]) { _ in
 						AxisTick(
 							centered: true, length: 6,
 							stroke: StrokeStyle(lineWidth: 2, lineCap: .round)
@@ -408,7 +382,7 @@ struct EnergyChartView: View {
 
 				// X-axis labels below chart (fixed height)
 				ChartXAxisLabels(
-					chartWidth: chartWidth, effectiveNow: effectiveNow, labelFont: labelFont
+					chartWidth: chartWidth, dataTime: dataTime, labelFont: labelFont
 				)
 				.padding(.top, 8)
 			}
