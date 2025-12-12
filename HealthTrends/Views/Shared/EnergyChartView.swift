@@ -16,44 +16,71 @@ private let debugNowOverride: Date? = nil
 
 // MARK: - Helper Functions
 
-/// Helper to get current time (or debug override)
-private func getCurrentTime() -> Date {
-	if let override = debugNowOverride {
+/// Encapsulates Data Time label positioning calculations
+private struct DataTimeLabelPosition {
+	let position: CGFloat  // Natural x-position on chart (0...chartWidth)
+	let labelWidth: CGFloat
+	let chartWidth: CGFloat
+
+	init(dataTime: Date, chartWidth: CGFloat) {
 		let calendar = Calendar.current
-		let today = calendar.startOfDay(for: Date())
-		let components = calendar.dateComponents([.hour, .minute], from: override)
-		return calendar.date(byAdding: components, to: today) ?? Date()
+		let startOfDay = calendar.startOfDay(for: dataTime)
+		let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
+		let dayDuration = TimeInterval(24 * 60 * 60)
+
+		self.position = chartWidth * (dataTimeOffset / dayDuration)
+		self.chartWidth = chartWidth
+
+		let dataTimeFormatter = Date.FormatStyle().hour().minute()
+		let dataTimeLabelText = dataTime.formatted(dataTimeFormatter)
+		self.labelWidth = measureTextWidth(dataTimeLabelText, textStyle: .caption1)
 	}
-	return Date()
+
+	var leftEdge: CGFloat { position - labelWidth / 2 }
+	var rightEdge: CGFloat { position + labelWidth / 2 }
+
+	var wouldOverflowLeft: Bool { leftEdge < 0 }
+	var wouldOverflowRight: Bool { rightEdge > chartWidth }
+	var wouldOverflow: Bool { wouldOverflowLeft || wouldOverflowRight }
+
+	/// Alignment for the label text
+	var alignment: Alignment {
+		if wouldOverflowLeft {
+			return .leading
+		} else if wouldOverflowRight {
+			return .trailing
+		} else {
+			return .center
+		}
+	}
+
+	/// X-offset to position the label
+	var offset: CGFloat {
+		if wouldOverflow {
+			return 0  // Edge-aligned, no offset needed
+		} else {
+			return position - chartWidth / 2  // Centered with offset
+		}
+	}
 }
 
 /// Helper to determine if Data Time label collides with start/end of day labels
 private func calculateLabelCollisions(chartWidth: CGFloat, dataTime: Date) -> (hidesStart: Bool, hidesEnd: Bool) {
+	let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
+
 	let calendar = Calendar.current
 	let startOfDay = calendar.startOfDay(for: dataTime)
-	let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
-	let dayDuration = TimeInterval(24 * 60 * 60)
-	let dataTimePosition = chartWidth * (dataTimeOffset / dayDuration)
-
-	// Measure actual text widths for accurate collision detection
-	let dataTimeFormatter = Date.FormatStyle().hour().minute()
-	let dataTimeLabelText = dataTime.formatted(dataTimeFormatter)
-	let dataTimeLabelWidth = measureTextWidth(dataTimeLabelText, textStyle: .caption1)
-
 	let hourFormatter = Date.FormatStyle().hour()
 	let startLabelText = startOfDay.formatted(hourFormatter)
 	let startEndLabelWidth = measureTextWidth(startLabelText, textStyle: .caption1)
 
 	let minSeparation: CGFloat = 4
 
-	let dataTimeLeft = dataTimePosition - dataTimeLabelWidth / 2
-	let dataTimeRight = dataTimePosition + dataTimeLabelWidth / 2
-
 	let startLabelRight = startEndLabelWidth
-	let hidesStart = dataTimeLeft < (startLabelRight + minSeparation)
+	let hidesStart = labelPos.leftEdge < (startLabelRight + minSeparation)
 
 	let endLabelLeft = chartWidth - startEndLabelWidth
-	let hidesEnd = dataTimeRight > (endLabelLeft - minSeparation)
+	let hidesEnd = labelPos.rightEdge > (endLabelLeft - minSeparation)
 
 	return (hidesStart, hidesEnd)
 }
@@ -75,6 +102,7 @@ private struct ChartXAxisLabels: View {
 			let startOfDay = calendar.startOfDay(for: Date())
 			let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 			let collisions = calculateLabelCollisions(chartWidth: chartWidth, dataTime: dataTime)
+			let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
 
 			// Start of day - left aligned (hide if collides with current hour or not systemLarge)
 			if !collisions.hidesStart {
@@ -88,56 +116,8 @@ private struct ChartXAxisLabels: View {
 			Text(dataTime, format: .dateTime.hour().minute())
 				.font(labelFont)
 				.foregroundStyle(.secondary)
-				.frame(
-					maxWidth: .infinity,
-					alignment: {
-						let startOfDay = calendar.startOfDay(for: dataTime)
-						let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
-						let dayDuration = TimeInterval(24 * 60 * 60)
-						let dataTimePosition = chartWidth * (dataTimeOffset / dayDuration)
-
-						// Measure actual text width for accurate positioning
-						let dataTimeFormatter = Date.FormatStyle().hour().minute()
-						let dataTimeLabelText = dataTime.formatted(dataTimeFormatter)
-						let dataTimeLabelWidth = measureTextWidth(
-							dataTimeLabelText, textStyle: .caption1)
-
-						// Check if centering would put label out of bounds
-						let centeredLeft = dataTimePosition - dataTimeLabelWidth / 2
-						let centeredRight = dataTimePosition + dataTimeLabelWidth / 2
-
-						if centeredLeft < 0 {
-							return .leading  // Too close to left edge
-						} else if centeredRight > chartWidth {
-							return .trailing  // Too close to right edge
-						} else {
-							return .center  // Safe to center
-						}
-					}()
-				)
-				.offset(
-					x: {
-						let startOfDay = calendar.startOfDay(for: dataTime)
-						let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
-						let dayDuration = TimeInterval(24 * 60 * 60)
-						let dataTimePosition = chartWidth * (dataTimeOffset / dayDuration)
-
-						// Measure actual text width for accurate positioning
-						let dataTimeFormatter = Date.FormatStyle().hour().minute()
-						let dataTimeLabelText = dataTime.formatted(dataTimeFormatter)
-						let dataTimeLabelWidth = measureTextWidth(
-							dataTimeLabelText, textStyle: .caption1)
-
-						// Check if centering would put label out of bounds
-						let centeredLeft = dataTimePosition - dataTimeLabelWidth / 2
-						let centeredRight = dataTimePosition + dataTimeLabelWidth / 2
-
-						if centeredLeft < 0 || centeredRight > chartWidth {
-							return 0  // Edge-aligned, no offset needed
-						} else {
-							return dataTimePosition - chartWidth / 2  // Centered with offset
-						}
-					}())
+				.frame(maxWidth: .infinity, alignment: labelPos.alignment)
+				.offset(x: labelPos.offset)
 
 			// End of day - right aligned (hide if collides with current hour or not systemLarge)
 			if !collisions.hidesEnd {
