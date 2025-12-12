@@ -164,8 +164,8 @@ struct EnergyChartView: View {
 		for date: Date, startOfDay: Date, endOfDay: Date, collisions: (hidesStart: Bool, hidesEnd: Bool),
 		dataTime: Date
 	) -> some AxisMark {
-		let minutesFromNow = abs(date.timeIntervalSince(dataTime)) / 60
-		if minutesFromNow >= 20 {
+		let minutesFromDataTime = abs(date.timeIntervalSince(dataTime)) / 60
+		if minutesFromDataTime >= 20 {
 			let isStartOfDay = abs(date.timeIntervalSince(startOfDay)) < 60
 			let isEndOfDay = abs(date.timeIntervalSince(endOfDay)) < 60
 			let showTickLine =
