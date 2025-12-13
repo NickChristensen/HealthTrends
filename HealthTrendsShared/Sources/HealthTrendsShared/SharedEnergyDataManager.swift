@@ -1,32 +1,43 @@
 import Foundation
-import HealthTrendsShared
 
 /// Shared data structure for communicating energy data between the app and widget
-struct SharedEnergyData: Codable {
-	let todayTotal: Double
-	let moveGoal: Double
-	let todayHourlyData: [SerializableHourlyEnergyData]
-	let latestSampleTimestamp: Date?  // Timestamp of most recent HealthKit sample
+public struct SharedEnergyData: Codable {
+	public let todayTotal: Double
+	public let moveGoal: Double
+	public let todayHourlyData: [SerializableHourlyEnergyData]
+	public let latestSampleTimestamp: Date?  // Timestamp of most recent HealthKit sample
+
+	public init(
+		todayTotal: Double,
+		moveGoal: Double,
+		todayHourlyData: [SerializableHourlyEnergyData],
+		latestSampleTimestamp: Date? = nil
+	) {
+		self.todayTotal = todayTotal
+		self.moveGoal = moveGoal
+		self.todayHourlyData = todayHourlyData
+		self.latestSampleTimestamp = latestSampleTimestamp
+	}
 
 	/// Codable version of HourlyEnergyData
-	struct SerializableHourlyEnergyData: Codable {
-		let hour: Date
-		let calories: Double
+	public struct SerializableHourlyEnergyData: Codable {
+		public let hour: Date
+		public let calories: Double
 
-		init(from hourlyData: HourlyEnergyData) {
+		public init(from hourlyData: HourlyEnergyData) {
 			self.hour = hourlyData.hour
 			self.calories = hourlyData.calories
 		}
 
-		func toHourlyEnergyData() -> HourlyEnergyData {
+		public func toHourlyEnergyData() -> HourlyEnergyData {
 			HourlyEnergyData(hour: hour, calories: calories)
 		}
 	}
 }
 
 /// Manager for reading/writing shared energy data to App Group container
-final class SharedEnergyDataManager {
-	static let shared = SharedEnergyDataManager()
+public final class SharedEnergyDataManager {
+	public static let shared = SharedEnergyDataManager()
 
 	private let appGroupIdentifier = "group.com.healthtrends.shared"
 	private let fileName = "energy-data.json"
@@ -44,7 +55,7 @@ final class SharedEnergyDataManager {
 	}
 
 	/// Write energy data to shared container
-	func writeEnergyData(
+	public func writeEnergyData(
 		todayTotal: Double,
 		moveGoal: Double,
 		todayHourlyData: [HourlyEnergyData],
@@ -68,7 +79,7 @@ final class SharedEnergyDataManager {
 	}
 
 	/// Read energy data from shared container
-	func readEnergyData() throws -> SharedEnergyData {
+	public func readEnergyData() throws -> SharedEnergyData {
 		guard let fileURL = fileURL else {
 			throw SharedDataError.containerNotFound
 		}
@@ -84,7 +95,7 @@ final class SharedEnergyDataManager {
 	}
 }
 
-enum SharedDataError: Error {
+public enum SharedDataError: Error {
 	case containerNotFound
 	case fileNotFound
 }

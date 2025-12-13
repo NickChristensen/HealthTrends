@@ -91,7 +91,7 @@ struct ActionButton: View {
 
 /// Development tools sheet content (simulator only)
 struct DevelopmentToolsSheet: View {
-	@Bindable var healthKitManager: HealthKitManager
+	var healthKitManager: HealthKitManager
 	@Environment(\.dismiss) private var dismiss
 
 	@State private var showingPermissionError = false
@@ -122,9 +122,9 @@ struct DevelopmentToolsSheet: View {
 								let dataAge = offsetSampleData ? selectedDuration : 0
 								try await healthKitManager.generateSampleData(
 									dataAge: dataAge)
-								// Refresh data after generating
-								try await healthKitManager.fetchEnergyData()
-								try await healthKitManager.fetchMoveGoal()
+								// Refresh all caches after generating
+								try await healthKitManager.populateAllCaches()
+								cacheViewRefreshID = UUID()
 							} catch {
 								permissionErrorMessage =
 									"Write permission is required to generate sample data. Please allow access when prompted."
@@ -151,24 +151,15 @@ struct DevelopmentToolsSheet: View {
 				.listRowBackground(Color(.systemBackground))
 
 				ActionButton(
-					title: "Fetch health data",
+					title: "Fetch health data & rebuild caches",
 					icon: "heart.fill",
 				) {
 					do {
-						try await healthKitManager.fetchEnergyData()
+						try await healthKitManager.populateAllCaches()
 						cacheViewRefreshID = UUID()
 					} catch {
 						print("Failed to fetch health data: \(error)")
 					}
-				}
-				.listRowBackground(Color(.systemBackground))
-
-				ActionButton(
-					title: "Rebuild average data cache",
-					icon: "arrow.clockwise",
-				) {
-					await healthKitManager.populateWeekdayCaches()
-					cacheViewRefreshID = UUID()
 				}
 				.listRowBackground(Color(.systemBackground))
 

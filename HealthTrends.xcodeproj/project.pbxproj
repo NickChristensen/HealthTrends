@@ -56,8 +56,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Assets.xcassets,
-				Models/HourlyEnergyData.swift,
-				Models/SharedEnergyData.swift,
 				Utilities/TextMeasurement.swift,
 				Views/Shared/EnergyChartView.swift,
 				Views/Shared/EnergyTrendView.swift,
