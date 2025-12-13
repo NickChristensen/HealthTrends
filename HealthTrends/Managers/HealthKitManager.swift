@@ -71,13 +71,13 @@ final class HealthKitManager {
 	private func verifyReadAuthorization() async -> Bool {
 		// FAST PATH: Check cache first (existing behavior when it works)
 		do {
-			let _ = try SharedEnergyDataManager.shared.readEnergyData()
+			let _ = try TodayEnergyCacheManager.shared.readEnergyData()
 			print("✅ Cache exists - authorization verified (fast path)")
 			return true
-		} catch SharedDataError.fileNotFound {
+		} catch TodayEnergyCacheError.fileNotFound {
 			// Cache doesn't exist - need to query HealthKit directly
 			print("⚠️ No cache found - checking HealthKit directly (query path)")
-		} catch SharedDataError.containerNotFound {
+		} catch TodayEnergyCacheError.containerNotFound {
 			// App group configuration error
 			print("❌ App group container not found - configuration error")
 			return false
@@ -266,7 +266,7 @@ final class HealthKitManager {
 
 		// Write today's data to shared container for widget fallback
 		do {
-			try SharedEnergyDataManager.shared.writeEnergyData(
+			try TodayEnergyCacheManager.shared.writeEnergyData(
 				todayTotal: todayTotal,
 				moveGoal: self.moveGoal,
 				todayHourlyData: cumulativeData,

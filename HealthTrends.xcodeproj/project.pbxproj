@@ -57,9 +57,6 @@
 			membershipExceptions = (
 				Assets.xcassets,
 				Utilities/TextMeasurement.swift,
-				Views/Shared/EnergyChartView.swift,
-				Views/Shared/EnergyTrendView.swift,
-				Views/Shared/HeaderStatistic.swift,
 			);
 			target = 01CFC1DF2EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension */;
 		};

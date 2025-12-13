@@ -271,9 +271,9 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
 			}
 
-			// Try to read SharedEnergyData cache (today only)
+			// Try to read TodayEnergyCache cache (today only)
 			do {
-				let todayCache = try SharedEnergyDataManager.shared.readEnergyData()
+				let todayCache = try TodayEnergyCacheManager.shared.readEnergyData()
 				let calendar = Calendar.current
 
 				// Read average data from weekday-specific cache
@@ -353,7 +353,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						isAuthorized: true  // Cache exists = authorized
 					)
 				}
-			} catch SharedDataError.fileNotFound {
+			} catch TodayEnergyCacheError.fileNotFound {
 				// NO CACHE: Never authorized OR first run
 				Self.logger.warning("❌ No cache found - returning unauthorized state")
 
@@ -368,7 +368,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					configuration: configuration,
 					isAuthorized: false  // No cache = unauthorized
 				)
-			} catch SharedDataError.containerNotFound {
+			} catch TodayEnergyCacheError.containerNotFound {
 				// APP GROUP ERROR: Configuration issue
 				Self.logger.error("❌ App group container not found - configuration error")
 
@@ -556,7 +556,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		-> EnergyWidgetEntry
 	{
 		do {
-			let todayCache = try SharedEnergyDataManager.shared.readEnergyData()
+			let todayCache = try TodayEnergyCacheManager.shared.readEnergyData()
 
 			// Read average data from weekday-specific cache
 			let cacheManager = AverageDataCacheManager()
@@ -602,7 +602,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	/// Load cached move goal (goals don't change frequently)
 	private func loadCachedMoveGoal() -> Double {
 		do {
-			let sharedData = try SharedEnergyDataManager.shared.readEnergyData()
+			let sharedData = try TodayEnergyCacheManager.shared.readEnergyData()
 			return sharedData.moveGoal
 		} catch {
 			return 800  // Default fallback
