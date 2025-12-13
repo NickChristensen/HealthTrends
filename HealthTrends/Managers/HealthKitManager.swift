@@ -3,21 +3,12 @@ import HealthKit
 import HealthTrendsShared
 import WidgetKit
 
-@MainActor
-@Observable
 final class HealthKitManager {
 	private let healthStore = HKHealthStore()
 	private let moveGoalCacheKey = "cachedMoveGoal"
 
 	var isAuthorized = false
-	var todayTotal: Double = 0
-	var averageAtCurrentHour: Double = 0  // Average cumulative calories BY current hour (see CLAUDE.md)
-	var projectedTotal: Double = 0  // Average of complete daily totals (see CLAUDE.md)
 	var moveGoal: Double = 0  // Daily Move goal from Fitness app
-	var todayHourlyData: [HourlyEnergyData] = []
-	var averageHourlyData: [HourlyEnergyData] = []
-	private(set) var latestSampleTimestamp: Date? = nil  // Timestamp of most recent HealthKit sample
-	private(set) var refreshCount: Int = 0  // Increments on each refresh to force UI updates
 
 	init() {
 		// Load cached move goal on initialization
@@ -59,19 +50,17 @@ final class HealthKitManager {
 		// Verify permission via hybrid approach (cache + query)
 		isAuthorized = await verifyReadAuthorization()
 
-		// If authorized, fetch data immediately to populate cache and show user data
+		// If authorized, populate all caches for widget support
 		if isAuthorized {
-			print("✅ Authorization verified - fetching initial data")
+			print("✅ Authorization verified - populating caches")
 			do {
-				try await fetchEnergyData()
-				print("✅ Initial data fetch successful")
-
-				// Populate all 7 weekday caches for complete widget fallback coverage
+				try await populateTodayCache()
 				await populateWeekdayCaches()
+				print("✅ Cache population successful")
 			} catch {
-				// Don't throw - authorization succeeded even if data fetch failed
+				// Don't throw - authorization succeeded even if cache population failed
 				// User might have no data yet, or device might be locked
-				print("⚠️ Initial data fetch failed (non-fatal): \(error.localizedDescription)")
+				print("⚠️ Cache population failed (non-fatal): \(error.localizedDescription)")
 			}
 		}
 	}
@@ -82,13 +71,13 @@ final class HealthKitManager {
 	private func verifyReadAuthorization() async -> Bool {
 		// FAST PATH: Check cache first (existing behavior when it works)
 		do {
-			let _ = try SharedEnergyDataManager.shared.readEnergyData()
+			let _ = try TodayEnergyCacheManager.shared.readEnergyData()
 			print("✅ Cache exists - authorization verified (fast path)")
 			return true
-		} catch SharedDataError.fileNotFound {
+		} catch TodayEnergyCacheError.fileNotFound {
 			// Cache doesn't exist - need to query HealthKit directly
 			print("⚠️ No cache found - checking HealthKit directly (query path)")
-		} catch SharedDataError.containerNotFound {
+		} catch TodayEnergyCacheError.containerNotFound {
 			// App group configuration error
 			print("❌ App group container not found - configuration error")
 			return false
@@ -244,100 +233,76 @@ final class HealthKitManager {
 		}
 	}
 
-	// MARK: - Data Fetching
+	// MARK: - Cache Population
 
-	// Fetch all Active Energy data
-	func fetchEnergyData() async throws {
+	/// Populate all caches (convenience method for debug tools)
+	func populateAllCaches() async throws {
+		try await populateTodayCache()
+		await populateWeekdayCaches()
+	}
+
+	/// Populate today's energy data cache for widget fallback
+	private func populateTodayCache() async throws {
 		guard isHealthKitAvailable else {
 			throw HealthKitError.notAvailable
 		}
 
-		async let todayData = fetchTodayData()
-		async let averageData = fetchAverageData()
-		async let _ = fetchMoveGoal()  // Fetches and updates self.moveGoal as side effect
+		let queryService = HealthKitQueryService(healthStore: healthStore)
 
-		let (today, average) = try await (todayData, averageData)
+		// Fetch today's data and move goal in parallel
+		async let todayData = queryService.fetchTodayHourlyTotals()
+		async let moveGoalData = queryService.fetchMoveGoal()
 
-		self.todayTotal = today.total
-		self.todayHourlyData = today.hourlyData
-		self.latestSampleTimestamp = today.latestSampleTimestamp
-		self.projectedTotal = average.total
-		self.averageHourlyData = average.hourlyData
+		let ((cumulativeData, latestSampleTimestamp), goal) = try await (todayData, moveGoalData)
 
-		// Calculate interpolated average at current minute
-		self.averageAtCurrentHour = average.hourlyData.interpolatedValue(at: Date()) ?? 0
+		// Update and cache move goal if valid
+		if goal > 0 {
+			self.moveGoal = goal
+			cacheMoveGoal(goal)
+		}
 
-		// Increment refresh counter to force UI redraw (updates NOW label even if data unchanged)
-		self.refreshCount += 1
+		// Calculate today's total (last cumulative data point)
+		let todayTotal = cumulativeData.last?.calories ?? 0
 
 		// Write today's data to shared container for widget fallback
 		do {
-			try SharedEnergyDataManager.shared.writeEnergyData(
-				todayTotal: self.todayTotal,
+			try TodayEnergyCacheManager.shared.writeEnergyData(
+				todayTotal: todayTotal,
 				moveGoal: self.moveGoal,
-				todayHourlyData: self.todayHourlyData,
-				latestSampleTimestamp: self.latestSampleTimestamp
+				todayHourlyData: cumulativeData,
+				latestSampleTimestamp: latestSampleTimestamp
 			)
 		} catch {
-			print("❌ CRITICAL: Failed to write energy data cache for widget")
+			print("⚠️ WARNING: Failed to write energy data cache for widget (non-fatal)")
 			print("   Error: \(error.localizedDescription)")
 			let nsError = error as NSError
 			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
+			print("   Widget will query HealthKit directly on next refresh")
 		}
 
-		// Write average data to weekday-specific cache for widget (refreshed daily)
+		// Write average data to weekday-specific cache
 		let weekday = Weekday.today
+		let (projectedTotal, averageHourlyData) = try await fetchAverageData()
+
 		let cache = AverageDataCache(
-			averageHourlyPattern: self.averageHourlyData,
-			projectedTotal: self.projectedTotal,
+			averageHourlyPattern: averageHourlyData,
+			projectedTotal: projectedTotal,
 			cachedAt: Date(),
 			cacheVersion: 1
 		)
 		do {
 			try AverageDataCacheManager().save(cache, for: weekday)
 		} catch {
-			print("❌ CRITICAL: Failed to write weekday cache for widget")
+			print("⚠️ WARNING: Failed to write weekday cache for widget (non-fatal)")
 			print("   Weekday: \(weekday.rawValue)")
 			print("   Error: \(error.localizedDescription)")
 			let nsError = error as NSError
 			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
+			print("   Widget will query HealthKit directly on next refresh")
 		}
 
 		// Reload widget timelines to pick up fresh data
 		WidgetCenter.shared.reloadAllTimelines()
-	}
-
-	// Fetch Move goal from Activity Summary
-	// iOS supports weekday-specific goals, so this must be called regularly (not just once)
-	func fetchMoveGoal() async throws {
-		guard isHealthKitAvailable else {
-			throw HealthKitError.notAvailable
-		}
-
-		let queryService = HealthKitQueryService(healthStore: healthStore)
-		let goal = try await queryService.fetchMoveGoal()
-
-		// Only update if we got a valid goal (> 0)
-		if goal > 0 {
-			self.moveGoal = goal
-			cacheMoveGoal(goal)
-		}
-		// If goal is 0, keep cached value (don't overwrite with 0)
-	}
-
-	// Fetch today's Active Energy data
-	// Returns cumulative calories at each hour (see CLAUDE.md for "Today" definition)
-	private func fetchTodayData() async throws -> (
-		total: Double, hourlyData: [HourlyEnergyData], latestSampleTimestamp: Date?
-	) {
-		// Use shared query service to get hourly data and latest sample timestamp
-		let queryService = HealthKitQueryService(healthStore: healthStore)
-		let (cumulativeData, latestSampleTimestamp) = try await queryService.fetchTodayHourlyTotals()
-
-		// Total is the last data point's calories (cumulative)
-		let total = cumulativeData.last?.calories ?? 0
-
-		return (total, cumulativeData, latestSampleTimestamp)
 	}
 
 	// Fetch average Active Energy data from past occurrences of the current weekday
@@ -418,44 +383,6 @@ final class HealthKitManager {
 			print("   Failed weekdays: \(failedWeekdays.map { String($0) }.joined(separator: ", "))")
 			print("   Widget may show incomplete data on these weekdays")
 		}
-	}
-
-	// Fetch hourly data for a specific time range
-	private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws
-		-> [HourlyEnergyData]
-	{
-		let predicate = HKQuery.predicateForSamples(
-			withStart: startDate, end: endDate, options: .strictStartDate)
-		let calendar = Calendar.current
-
-		var hourlyTotals: [Date: Double] = [:]
-
-		let samples = try await withCheckedThrowingContinuation {
-			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
-			) { _, samples, error in
-				if let error = error {
-					continuation.resume(throwing: error)
-					return
-				}
-				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-			}
-			healthStore.execute(query)
-		}
-
-		// Group by hour
-		for sample in samples {
-			let hourStart =
-				calendar.dateInterval(of: .hour, for: sample.startDate)?.start ?? sample.startDate
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
-			hourlyTotals[hourStart, default: 0] += calories
-		}
-
-		// Convert to array and sort
-		return hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
-			.sorted { $0.hour < $1.hour }
 	}
 
 	// Fetch daily totals for a date range

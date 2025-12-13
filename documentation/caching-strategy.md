@@ -6,7 +6,7 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 
 ## Cache Types
 
-### Today Data Cache (SharedEnergyData)
+### Today Data Cache (TodayEnergyCache)
 
 **Purpose:** Frequent fallback cache for widget when HealthKit is unavailable
 
@@ -27,9 +27,9 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 **Staleness check:** Compares `latestSampleTimestamp` to current date using `Calendar.isDate(_:inSameDayAs:)`. If timestamp is nil, cache is treated as stale (fail-safe behavior).
 
 **Implementation:**
-- Definition: `HealthTrends/Models/SharedEnergyData.swift`
+- Definition: `HealthTrendsShared/Sources/HealthTrendsShared/TodayEnergyCacheManager.swift`
 - Query service: `HealthKitQueryService.fetchTodayHourlyTotals()` returns tuple with data and `latestSampleTimestamp` extracted from most recent sample's `endDate`
-- Writer: `HealthKitManager.fetchEnergyData()` and `EnergyWidgetProvider.loadFreshEntry()` (both write cache with `latestSampleTimestamp`)
+- Writer: `HealthKitManager.populateTodayCache()` and `EnergyWidgetProvider.loadFreshEntry()` (both write cache with `latestSampleTimestamp`)
 - Readers:
   - App authorization check: `HealthKitManager.verifyReadAuthorization()`
   - Widget fallback: `EnergyWidgetProvider.loadFreshEntry()`
@@ -72,8 +72,7 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 **Implementation:**
 - Definition: `HealthTrendsShared/Sources/HealthTrendsShared/AverageDataCache.swift`
 - API: `AverageDataCacheManager.load(for: Weekday)`, `save(_:for: Weekday)`, `shouldRefresh(for: Weekday)`
-- Writer (current weekday): `HealthKitManager.fetchEnergyData()` at `HealthTrends/Managers/HealthKitManager.swift:231-237`
-- Writer (all weekdays): `HealthKitManager.populateWeekdayCaches()` at `HealthTrends/Managers/HealthKitManager.swift:344-376`
+- Writer (all weekdays): `HealthKitManager.populateWeekdayCaches()` at `HealthTrends/Managers/HealthKitManager.swift:344`
 - Readers:
   - Widget primary source: `EnergyWidgetProvider.loadFreshEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:367-454`
   - Widget fallback: Same method, reads when today's HealthKit query fails
@@ -126,7 +125,7 @@ The widget uses a **hybrid approach** to minimize HealthKit queries while ensuri
 3. Combine and display
 
 ### Fallback (Device Locked / Query Failed)
-1. Read `SharedEnergyData` for today's data
+1. Read `TodayEnergyCache` for today's data
 2. Read `WeekdayAverageCache` for current weekday's average data
 3. Check `latestSampleTimestamp`:
    - If nil or from previous day → show average-only view
@@ -140,7 +139,7 @@ The widget uses a **hybrid approach** to minimize HealthKit queries while ensuri
 The app uses a **hybrid approach** to verify HealthKit authorization:
 
 **Fast Path (Cache Check):**
-- If `SharedEnergyData` exists → user has granted permission (instant verification)
+- If `TodayEnergyCache` exists → user has granted permission (instant verification)
 - Returns immediately without querying HealthKit
 
 **Query Path (HealthKit Verification):**
@@ -209,7 +208,7 @@ After successful authorization:
 
 ### Device Locked
 - HealthKit queries fail with error code 6
-- Widget falls back to cached data from `SharedEnergyData`
+- Widget falls back to cached data from `TodayEnergyCache`
 - Staleness check uses `latestSampleTimestamp` to determine if data is from today
 - Chart NOW marker and average interpolation use `latestSampleTimestamp` (reflects actual sample time, not cache write time)
 - If `latestSampleTimestamp` is nil:
@@ -234,7 +233,7 @@ After successful authorization:
 ### Version Migration
 - `WeekdayAverageCache` has `cacheVersion` (currently 2) for container-level changes
 - Individual `AverageDataCache` entries have their own `cacheVersion` (currently 1)
-- `SharedEnergyData` does not have explicit versioning
+- `TodayEnergyCache` does not have explicit versioning
   - Schema changes cause decode failures (treated as missing cache)
   - Cache automatically regenerates on next app refresh
   - Brief widget unavailability during transition is acceptable

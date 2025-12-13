@@ -33,7 +33,7 @@ struct ToggleableTimestamp: View {
 
 /// Displays cache state for debugging
 struct CacheDebugView: View {
-	@State private var todayCache: SharedEnergyData?
+	@State private var todayCache: TodayEnergyCache?
 	@State private var weekdayCache: WeekdayAverageCache?
 
 	var body: some View {
@@ -124,7 +124,7 @@ struct CacheDebugView: View {
 
 	private func loadCacheData() {
 		// Load today's data cache
-		todayCache = try? SharedEnergyDataManager.shared.readEnergyData()
+		todayCache = try? TodayEnergyCacheManager.shared.readEnergyData()
 
 		// Load weekday average cache
 		let cacheManager = AverageDataCacheManager()

@@ -1,3 +1,4 @@
+import HealthTrendsShared
 import SwiftUI
 import WidgetKit
 
