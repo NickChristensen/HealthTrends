@@ -29,18 +29,12 @@ The project consists of three main targets with the following structure:
 HealthTrends/
 ├── HealthTrendsApp.swift              # App entry point (@main)
 ├── Managers/
-│   └── HealthKitManager.swift         # App-level HealthKit state management (@Observable)
-├── Models/
-│   ├── HourlyEnergyData.swift         # App target's copy (for app-specific logic)
-│   └── SharedEnergyData.swift         # Data model for app/widget communication
+│   └── HealthKitManager.swift         # App-level HealthKit authorization & debug tools
 ├── Views/
-│   ├── App/
-│   │   ├── ContentView.swift          # Main app view (NOT in root!)
-│   │   └── DevelopmentToolsSheet.swift
-│   └── Shared/
-│       ├── EnergyChartView.swift      # Swift Charts visualization
-│       ├── EnergyTrendView.swift      # Main trend display (chart + stats)
-│       └── HeaderStatistic.swift      # Reusable statistic component
+│   └── App/
+│       ├── CacheDebugView.swift       # Cache debugging tools
+│       ├── ContentView.swift          # Main app view (authorization + debug UI)
+│       └── DevelopmentToolsSheet.swift
 ├── Utilities/
 │   ├── ShakeGesture.swift             # Debug shake gesture
 │   ├── TextMeasurement.swift          # Chart label collision detection
@@ -52,7 +46,10 @@ HealthTrends/
 ```
 DailyActiveEnergyWidget/
 ├── DailyActiveEnergyWidgetBundle.swift  # Widget bundle definition
-├── DailyActiveEnergyWidget.swift        # Timeline provider & widget views
+├── DailyActiveEnergyWidget.swift        # Timeline provider & widget configuration
+├── EnergyChartView.swift                # Swift Charts visualization
+├── EnergyTrendView.swift                # Main trend display (chart + stats)
+├── HeaderStatistic.swift                # Reusable statistic component
 ├── RefreshWidgetIntent.swift            # App Intent for manual refresh
 ├── WidgetConfigurationIntent.swift      # Widget configuration
 └── Assets.xcassets/                     # Widget-specific assets
@@ -66,26 +63,27 @@ HealthTrendsShared/
 └── Sources/HealthTrendsShared/
     ├── HealthKitQueryService.swift      # HealthKit query logic (shared!)
     ├── AverageDataCache.swift           # Caching for average calculations
+    ├── TodayEnergyCacheManager.swift    # Today's energy cache manager
     └── HourlyEnergyData.swift           # Core data model (shared!)
 ```
 
 ### Key File Locations (Most Frequently Modified)
 
 **Widget timeline:** `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift`
-**Main app view:** `HealthTrends/Views/App/ContentView.swift` (NOT in root!)
-**Chart rendering:** `HealthTrends/Views/Shared/EnergyChartView.swift`
+**Widget chart rendering:** `DailyActiveEnergyWidget/EnergyChartView.swift`
+**Widget trend display:** `DailyActiveEnergyWidget/EnergyTrendView.swift`
+**Main app view:** `HealthTrends/Views/App/ContentView.swift`
 **App HealthKit manager:** `HealthTrends/Managers/HealthKitManager.swift`
 **Development tools:** `HealthTrends/Views/App/DevelopmentToolsSheet.swift`
-**Trend display:** `HealthTrends/Views/Shared/EnergyTrendView.swift`
 **HealthKit queries (shared):** `HealthTrendsShared/Sources/HealthTrendsShared/HealthKitQueryService.swift`
+**Today energy cache (shared):** `HealthTrendsShared/Sources/HealthTrendsShared/TodayEnergyCacheManager.swift`
 
 ### Important Notes
-- **ContentView is NOT in `HealthTrends/ContentView.swift`** — it's nested in `Views/App/`
-- **Two copies of `HourlyEnergyData.swift`** exist:
-  - Shared version: `HealthTrendsShared/Sources/HealthTrendsShared/HourlyEnergyData.swift`
-  - App version: `HealthTrends/Models/HourlyEnergyData.swift`
+- **App is authorization-only** — Main app UI is just HealthKit authorization + debug tools; all user-facing UI lives in widgets
+- **Widget owns its views** — `EnergyChartView`, `EnergyTrendView`, and `HeaderStatistic` are in the widget target, not shared
+- **Single data model** — `HourlyEnergyData` lives only in the shared package (`HealthTrendsShared`)
 - **HealthKit queries** are centralized in the shared package, not scattered
-- **Widget uses shared package** for all HealthKit logic—don't duplicate code
+- **Symmetric cache access** — Both app and widget can read/write `TodayEnergyCacheManager` from shared package
 
 ### Additional Resources
 - **Documentation:** `documentation/` contains data flow and widget debugging guides
