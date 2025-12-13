@@ -273,11 +273,11 @@ final class HealthKitManager {
 				latestSampleTimestamp: latestSampleTimestamp
 			)
 		} catch {
-			print("❌ CRITICAL: Failed to write energy data cache for widget")
+			print("⚠️ WARNING: Failed to write energy data cache for widget (non-fatal)")
 			print("   Error: \(error.localizedDescription)")
 			let nsError = error as NSError
 			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
-			throw error
+			print("   Widget will query HealthKit directly on next refresh")
 		}
 
 		// Write average data to weekday-specific cache
@@ -293,12 +293,12 @@ final class HealthKitManager {
 		do {
 			try AverageDataCacheManager().save(cache, for: weekday)
 		} catch {
-			print("❌ CRITICAL: Failed to write weekday cache for widget")
+			print("⚠️ WARNING: Failed to write weekday cache for widget (non-fatal)")
 			print("   Weekday: \(weekday.rawValue)")
 			print("   Error: \(error.localizedDescription)")
 			let nsError = error as NSError
 			print("   Domain: \(nsError.domain), Code: \(nsError.code)")
-			throw error
+			print("   Widget will query HealthKit directly on next refresh")
 		}
 
 		// Reload widget timelines to pick up fresh data
