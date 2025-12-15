@@ -1,7 +1,5 @@
 # Health Trends - Technical Documentation
 
-> **For project management workflows** (GitHub issues, GitHub Projects, Beads, git workflow, status tracking, branching strategy): see [PROJECT_MANAGEMENT.md](./PROJECT_MANAGEMENT.md)
-
 ## Documentation
 - **apple-docs MCP server is available** for Swift, SwiftUI, Swift Charts, and other Apple framework documentation
   - Use it to look up APIs, best practices, and implementation details
