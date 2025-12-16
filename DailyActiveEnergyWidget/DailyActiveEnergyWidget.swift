@@ -156,15 +156,13 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let timeline: Timeline<EnergyWidgetEntry>
 
 		if midnight < next15MinUpdate {
-			// Midnight is coming up - create zero-state entry
+			// Midnight is coming up - create zero-state entry with NEW weekday's average data
 			let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
 			Self.logger.info("Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
 
 			let midnightEntry = createMidnightEntry(
 				date: midnight,
 				moveGoal: currentEntry.moveGoal,
-				averageHourlyData: currentEntry.averageHourlyData,
-				projectedTotal: currentEntry.projectedTotal,
 				configuration: configuration,
 				isAuthorized: currentEntry.isAuthorized
 			)
@@ -184,28 +182,60 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		return timeline
 	}
 
+	/// Normalize timestamps in hourly data to match a target date
+	/// Preserves hour/minute components while updating the date
+	/// Used to align cached historical patterns with the current day's timeline
+	private func normalizeTimestamps(_ data: [HourlyEnergyData], to targetDate: Date) -> [HourlyEnergyData] {
+		let calendar = Calendar.current
+		let targetStartOfDay = calendar.startOfDay(for: targetDate)
+
+		return data.map { dataPoint in
+			let hour = calendar.component(.hour, from: dataPoint.hour)
+			let minute = calendar.component(.minute, from: dataPoint.hour)
+
+			let normalizedDate = calendar.date(
+				bySettingHour: hour,
+				minute: minute,
+				second: 0,
+				of: targetStartOfDay
+			)!
+
+			return HourlyEnergyData(hour: normalizedDate, calories: dataPoint.calories)
+		}
+	}
+
 	/// Create a predictive zero-state entry for midnight
 	/// We know that "Today" resets to 0 at midnight, so this is a valid deterministic state
-	/// We preserve average data for visual continuity until the next reload
+	/// Loads average data for the NEW weekday (e.g., Tuesday at midnight, not Monday)
 	private func createMidnightEntry(
 		date: Date,
 		moveGoal: Double,
-		averageHourlyData: [HourlyEnergyData],
-		projectedTotal: Double,
 		configuration: EnergyWidgetConfigurationIntent,
 		isAuthorized: Bool
 	) -> EnergyWidgetEntry {
 		let calendar = Calendar.current
 		let startOfDay = calendar.startOfDay(for: date)
 
+		// Derive weekday from the midnight date (not "today")
+		let weekday = Weekday(date: date)!
+
+		// Load average data for the NEW weekday
+		let cacheManager = AverageDataCacheManager()
+		let averageCache = cacheManager.load(for: weekday)
+
+		// Normalize timestamps to match the midnight date
+		let cachedData = averageCache?.toHourlyEnergyData() ?? []
+		let averageHourlyData = normalizeTimestamps(cachedData, to: date)
+		let projectedTotal = averageCache?.projectedTotal ?? 0
+
 		return EnergyWidgetEntry(
 			date: date,
 			todayTotal: 0,  // Known: Today resets to 0 at midnight
 			averageAtCurrentHour: 0,  // At midnight, average is also 0
-			projectedTotal: projectedTotal,  // Keep yesterday's projected total for reference
+			projectedTotal: projectedTotal,
 			moveGoal: moveGoal,  // Use previous goal; will be refreshed after midnight reload
 			todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
-			averageHourlyData: averageHourlyData,  // Keep average pattern for visual continuity
+			averageHourlyData: averageHourlyData,  // New weekday's pattern with normalized timestamps
 			configuration: configuration,
 			isAuthorized: isAuthorized
 		)
@@ -293,8 +323,10 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				let calendar = Calendar.current
 
 				// Read average data from weekday-specific cache
-				let averageCache = cacheManager.load(for: Weekday.today)
-				let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
+				let weekday = Weekday(date: date)!
+				let averageCache = cacheManager.load(for: weekday)
+				let cachedAverageData = averageCache?.toHourlyEnergyData() ?? []
+				let averageHourlyData = normalizeTimestamps(cachedAverageData, to: date)
 				let projectedTotal = averageCache?.projectedTotal ?? 0
 
 				// Determine effectiveDate: use sample timestamp if available, otherwise current time
@@ -439,7 +471,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let averageData: [HourlyEnergyData]
 		let projectedTotal: Double
 
-		let weekday = Weekday.today
+		let weekday = Weekday(date: date)!
 		if cacheManager.shouldRefresh(for: weekday) {
 			// Cache is stale or missing - refresh it
 			Self.logger.info(
@@ -481,7 +513,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 				// Try to use stale cache as fallback
 				if let staleCache = cacheManager.load(for: weekday) {
-					averageData = staleCache.toHourlyEnergyData()
+					let cachedData = staleCache.toHourlyEnergyData()
+					averageData = normalizeTimestamps(cachedData, to: date)
 					projectedTotal = staleCache.projectedTotal
 					let cacheAge = date.timeIntervalSince(staleCache.cachedAt)
 
@@ -518,7 +551,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		} else {
 			// Use fresh cache
 			if let cache = cacheManager.load(for: weekday) {
-				averageData = cache.toHourlyEnergyData()
+				let cachedData = cache.toHourlyEnergyData()
+				averageData = normalizeTimestamps(cachedData, to: date)
 				projectedTotal = cache.projectedTotal
 				let cacheAge = date.timeIntervalSince(cache.cachedAt)
 
@@ -576,8 +610,10 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 			// Read average data from weekday-specific cache
 			let cacheManager = AverageDataCacheManager()
-			let averageCache = cacheManager.load(for: Weekday.today)
-			let averageHourlyData = averageCache?.toHourlyEnergyData() ?? []
+			let weekday = Weekday(date: date)!
+			let averageCache = cacheManager.load(for: weekday)
+			let cachedAverageData = averageCache?.toHourlyEnergyData() ?? []
+			let averageHourlyData = normalizeTimestamps(cachedAverageData, to: date)
 			let projectedTotal = averageCache?.projectedTotal ?? 0
 
 			// Use sample timestamp if available, otherwise current time
