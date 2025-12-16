@@ -185,13 +185,21 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	/// Normalize timestamps in hourly data to match a target date
 	/// Preserves hour/minute components while updating the date
 	/// Used to align cached historical patterns with the current day's timeline
+	/// Filters out next-day midnight endpoint to prevent duplicate midnight entries
 	private func normalizeTimestamps(_ data: [HourlyEnergyData], to targetDate: Date) -> [HourlyEnergyData] {
 		let calendar = Calendar.current
 		let targetStartOfDay = calendar.startOfDay(for: targetDate)
 
-		return data.map { dataPoint in
+		return data.compactMap { dataPoint in
 			let hour = calendar.component(.hour, from: dataPoint.hour)
 			let minute = calendar.component(.minute, from: dataPoint.hour)
+
+			// Skip next-day midnight point (hour=0, minute=0, calories > 0)
+			// This represents the projected total endpoint which becomes duplicate after normalization
+			// The explicit start-of-day midnight (0 cal) is preserved
+			if hour == 0 && minute == 0 && dataPoint.calories > 0 {
+				return nil
+			}
 
 			let normalizedDate = calendar.date(
 				bySettingHour: hour,
