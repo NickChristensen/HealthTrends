@@ -186,9 +186,10 @@ Together, they enable users to make informed decisions about their activity leve
 - Latest sample timestamp (data freshness indicator)
 
 **Cache Strategy:**
-- App writes to shared container after HealthKit queries
-- Widget reads from shared container as fallback when queries fail
+- Both app and widget write to shared container after successful HealthKit queries
+- Widget reads from shared container as fallback when queries fail (device locked, etc.)
 - Weekday-specific cache (7 separate caches, one per weekday)
+- Cache stays fresh via widget's 15-minute refresh cycle, independent of app usage
 
 > **Technical Implementation:** See [caching-strategy.md](./caching-strategy.md) for detailed cache architecture, staleness checks, fallback behavior, and performance characteristics.
 
