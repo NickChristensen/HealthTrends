@@ -22,14 +22,18 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 - Move goal is queried fresh from HealthKit on each refresh; cached value used only as fallback when queries fail.
 - `latestSampleTimestamp` reflects when HealthKit data is actually from (last sample's end time). This matters in delayed-sync scenarios (iPad waiting for iPhone, iPhone waiting for Apple Watch) where the widget should accurately represent data freshness.
 
-**Update frequency:** Every app refresh (~15 minutes)
+**Update frequency:**
+- App: Every app refresh (~15 minutes)
+- Widget: Every successful HealthKit query (~15 minutes)
 
 **Staleness check:** Compares `latestSampleTimestamp` to current date using `Calendar.isDate(_:inSameDayAs:)`. If timestamp is nil, cache is treated as stale (fail-safe behavior).
 
 **Implementation:**
 - Definition: `HealthTrendsShared/Sources/HealthTrendsShared/TodayEnergyCacheManager.swift`
 - Query service: `HealthKitQueryService.fetchTodayHourlyTotals()` returns tuple with data and `latestSampleTimestamp` extracted from most recent sample's `endDate`
-- Writer: `HealthKitManager.populateTodayCache()` and `EnergyWidgetProvider.loadFreshEntry()` (both write cache with `latestSampleTimestamp`)
+- Writers (both write after successful HealthKit queries):
+  - App: `HealthKitManager.populateTodayCache()` at `HealthTrends/Managers/HealthKitManager.swift:269-273`
+  - Widget: `EnergyWidgetProvider.loadFreshEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:241-246`
 - Readers:
   - App authorization check: `HealthKitManager.verifyReadAuthorization()`
   - Widget fallback: `EnergyWidgetProvider.loadFreshEntry()`
@@ -108,10 +112,11 @@ The two caches are **independent** and serve different purposes:
 
 | Aspect | Today Cache | Average Cache (per weekday) |
 |--------|-------------|------------------------------|
-| Update trigger | App refresh | Daily morning window (current weekday only) |
+| Update trigger | App refresh + Widget refresh | Daily morning window (current weekday only) |
+| Writers | App + Widget | App + Widget |
 | Data source | Last 24 hours | Last 70 days (weekday-filtered) |
 | Computation cost | Low (small query) | High (large dataset, aggregation) |
-| Widget strategy | Fallback only | Primary source |
+| Widget strategy | Write on success, read on failure | Primary source |
 | Staleness tolerance | Same day | Up to 30 days |
 | Cache entries | 1 (today) | 7 (one per weekday) |
 
@@ -121,8 +126,11 @@ The widget uses a **hybrid approach** to minimize HealthKit queries while ensuri
 
 ### Normal Operation (Device Unlocked)
 1. Query HealthKit for today's data and move goal (always fresh)
-2. Read `WeekdayAverageCache` for current weekday (if fresh, use it; if stale, query HealthKit and update that weekday's cache)
-3. Combine and display
+2. **Write** today's data to `TodayEnergyCache` (keeps cache fresh for future fallback)
+3. Read `WeekdayAverageCache` for current weekday (if fresh, use it; if stale, query HealthKit and update that weekday's cache)
+4. Combine and display
+
+**Benefit:** Cache stays fresh even if user rarely opens the app, since widget updates it on every successful query (~15 min intervals)
 
 ### Fallback (Device Locked / Query Failed)
 1. Read `TodayEnergyCache` for today's data
@@ -248,4 +256,8 @@ After successful authorization:
 - No automatic cleanup needed unless additional historical data added
 
 ### Widget Background Refresh
-Widget relies on timeline refresh policy (15-minute intervals). Cannot independently refresh HealthKit data without user opening app or timeline reload triggering.
+Widget relies on timeline refresh policy (15-minute intervals). On each timeline refresh:
+- Queries HealthKit independently (doesn't require app to be opened)
+- Writes today's data to `TodayEnergyCache` after successful queries
+- Writes average data to `WeekdayAverageCache` if stale
+- Ensures caches stay fresh even if user rarely opens the app

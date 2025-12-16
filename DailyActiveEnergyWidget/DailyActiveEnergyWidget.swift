@@ -235,6 +235,22 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			moveGoal = fetchedGoal > 0 ? fetchedGoal : loadCachedMoveGoal()
 			latestSampleTimestamp = sampleTimestamp
 
+			// Write today's data to cache for future widget refreshes
+			// This ensures cache stays fresh even if user rarely opens the app
+			do {
+				try TodayEnergyCacheManager.shared.writeEnergyData(
+					todayTotal: todayTotal,
+					moveGoal: moveGoal,
+					todayHourlyData: hourlyData,
+					latestSampleTimestamp: latestSampleTimestamp
+				)
+				Self.logger.info("✅ Widget wrote today's data to cache")
+			} catch {
+				// Non-fatal: cache write failure doesn't affect widget display
+				Self.logger.warning("⚠️ Widget failed to write today's cache (non-fatal)")
+				Self.logger.warning("   Error: \(error.localizedDescription, privacy: .public)")
+			}
+
 			// Check data freshness - warn if older than 30 minutes
 			if let latestDataPoint = hourlyData.last {
 				let dataAge = date.timeIntervalSince(latestDataPoint.hour)
