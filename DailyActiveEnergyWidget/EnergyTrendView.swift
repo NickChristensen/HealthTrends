@@ -18,26 +18,27 @@ struct EnergyTrendView: View {
 	@Environment(\.widgetFamily) var widgetFamily
 
 	private var chartBackgroundColor: Color {
-		widgetRenderingMode == .accented ? .clear : Color("AppBackground")
+		widgetRenderingMode == .accented ? .clear : Color("WidgetBackground")
 	}
 
 	var body: some View {
 		if widgetFamily == .systemMedium {
 			// Medium widget: horizontal layout
-			HStack(spacing: 0) {
+            let spacing = 16.0
+			HStack(spacing: spacing) {
 				// Header
-				VStack(spacing: 8) {
+                VStack {
 					HeaderStatistic(
 						label: "Today", statistic: todayTotal, color: Color("AccentColor")
 					)
-					.frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.primaryOpacity)
 
 					HeaderStatistic(
 						label: "Average", statistic: averageAtCurrentHour,
 						color: Color("AverageStatisticColor")
 					)
-					.frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.secondaryOpacity)
 
 					HeaderStatistic(
@@ -45,15 +46,10 @@ struct EnergyTrendView: View {
 						color: Color("TotalStatisticTextColor"),
 						circleColor: Color("TotalStatisticCircleColor")
 					)
-					.frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
-				.fixedSize(horizontal: true, vertical: true)
-				.padding(16)
-				//                Removing this in favor of fixed size above. Pick one.
-				//                .containerRelativeFrame(.horizontal) { length, _ in
-				//                    return length * 0.333
-				//                }
+                .fixedSize(horizontal: true, vertical: false)
 
 				EnergyChartView(
 					todayHourlyData: todayHourlyData,
@@ -62,16 +58,16 @@ struct EnergyTrendView: View {
 					projectedTotal: projectedTotal,
 					dataTime: dataTime
 				)
-				.padding(16)
-				.background(chartBackgroundColor)
 				.frame(maxWidth: .infinity)
 			}
+            .padding(spacing)
+            .background(chartBackgroundColor)
 		} else {
 			// Large/ExtraLarge widgets: vertical layout (stats on top, chart below)
 			let spacing = 16.0
 			VStack(spacing: spacing) {
 				// Header
-				HStack(spacing: 0) {
+				HStack {
 					HeaderStatistic(
 						label: "Today", statistic: todayTotal, color: Color("AccentColor")
 					)
@@ -93,7 +89,6 @@ struct EnergyTrendView: View {
 					.frame(maxWidth: .infinity, alignment: .trailing)
 					.opacity(widgetRenderingMode.tertiaryOpacity)
 				}
-				.padding(.horizontal, 16)
 				.fixedSize(horizontal: false, vertical: true)
 
 				EnergyChartView(
@@ -103,12 +98,10 @@ struct EnergyTrendView: View {
 					projectedTotal: projectedTotal,
 					dataTime: dataTime
 				)
-				.padding(.horizontal, 16)
-				.padding(.top, spacing)
-				.background(chartBackgroundColor)
 				.frame(maxHeight: .infinity)
 			}
-			.padding(.vertical, spacing)
+			.padding(spacing)
+            .background(chartBackgroundColor)
 		}
 	}
 }

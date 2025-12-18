@@ -143,7 +143,7 @@ struct EnergyChartView: View {
 	}
 
 	private var chartBackgroundColor: Color {
-		widgetRenderingMode == .accented ? .clear : Color("AppBackground")
+		widgetRenderingMode == .accented ? .clear : Color("WidgetBackground")
 	}
 
 	private var labelFont: Font {
