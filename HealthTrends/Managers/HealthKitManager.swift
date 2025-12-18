@@ -3,6 +3,7 @@ import HealthKit
 import HealthTrendsShared
 import WidgetKit
 
+@Observable
 final class HealthKitManager {
 	private let healthStore = HKHealthStore()
 	private let moveGoalCacheKey = "cachedMoveGoal"
