@@ -163,6 +163,11 @@ struct DevelopmentToolsSheet: View {
 				}
 				.listRowBackground(Color(.systemBackground))
 
+				Section("Authorization Debug") {
+					AuthorizationDebugView(healthKitManager: healthKitManager)
+				}
+				.listRowBackground(Color(.systemBackground))
+
 				Section {
 					CacheDebugView()
 						.id(cacheViewRefreshID)
@@ -186,4 +191,161 @@ struct DevelopmentToolsSheet: View {
 			Text(permissionErrorMessage)
 		}
 	}
+}
+
+/// Debug view showing authorization check values
+struct AuthorizationDebugView: View {
+	var healthKitManager: HealthKitManager
+	@State private var cacheStatus: CacheCheckResult?
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			DebugRow(
+				label: "isAuthorized",
+				value: healthKitManager.isAuthorized.description,
+				isError: !healthKitManager.isAuthorized
+			)
+
+			if let status = cacheStatus {
+				DebugRow(
+					label: "Cache file exists",
+					value: status.exists.description,
+					isError: !status.exists
+				)
+
+				if status.exists, let age = status.ageSeconds {
+					DebugRow(
+						label: "Data age",
+						value: formatAge(age),
+						isError: age > 3600  // Warn if older than 1 hour
+					)
+				}
+
+				if let todayTotal = status.todayTotal {
+					DebugRow(label: "Today total", value: "\(Int(todayTotal)) kcal")
+				}
+
+				if let moveGoal = status.moveGoal {
+					DebugRow(label: "Move goal", value: "\(Int(moveGoal)) kcal")
+				}
+
+				if let hourlyCount = status.hourlyDataCount {
+					DebugRow(label: "Hourly data points", value: "\(hourlyCount)")
+				}
+
+				if let timestamp = status.latestSampleTimestamp {
+					DebugRow(
+						label: "Latest sample",
+						value: formatTimestamp(timestamp)
+					)
+				}
+
+				if let error = status.error {
+					DebugRow(label: "Cache read error", value: error, isError: true)
+				}
+			}
+		}
+		.font(.system(.body, design: .monospaced))
+		.task {
+			await checkCacheStatus()
+		}
+	}
+
+	private func checkCacheStatus() async {
+		// Try to read the cache and capture all details
+		do {
+			let data = try TodayEnergyCacheManager.shared.readEnergyData()
+
+			// Calculate cache age from latest sample timestamp
+			let age = data.latestSampleTimestamp.map { Date().timeIntervalSince($0) }
+
+			cacheStatus = CacheCheckResult(
+				exists: true,
+				ageSeconds: age,
+				todayTotal: data.todayTotal,
+				moveGoal: data.moveGoal,
+				hourlyDataCount: data.todayHourlyData.count,
+				latestSampleTimestamp: data.latestSampleTimestamp,
+				error: nil
+			)
+		} catch TodayEnergyCacheError.fileNotFound {
+			cacheStatus = CacheCheckResult(
+				exists: false,
+				ageSeconds: nil,
+				todayTotal: nil,
+				moveGoal: nil,
+				hourlyDataCount: nil,
+				latestSampleTimestamp: nil,
+				error: "File not found"
+			)
+		} catch TodayEnergyCacheError.containerNotFound {
+			cacheStatus = CacheCheckResult(
+				exists: false,
+				ageSeconds: nil,
+				todayTotal: nil,
+				moveGoal: nil,
+				hourlyDataCount: nil,
+				latestSampleTimestamp: nil,
+				error: "App group container not found"
+			)
+		} catch {
+			cacheStatus = CacheCheckResult(
+				exists: true,
+				ageSeconds: nil,
+				todayTotal: nil,
+				moveGoal: nil,
+				hourlyDataCount: nil,
+				latestSampleTimestamp: nil,
+				error: error.localizedDescription
+			)
+		}
+	}
+
+	private func formatAge(_ seconds: TimeInterval) -> String {
+		if seconds < 60 {
+			return "\(Int(seconds))s"
+		} else if seconds < 3600 {
+			return "\(Int(seconds / 60))m"
+		} else {
+			let hours = Int(seconds / 3600)
+			let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
+			return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
+		}
+	}
+
+	private func formatTimestamp(_ date: Date) -> String {
+		let formatter = DateFormatter()
+		formatter.dateStyle = .none
+		formatter.timeStyle = .short
+		return formatter.string(from: date)
+	}
+}
+
+/// Debug row component
+struct DebugRow: View {
+	let label: String
+	let value: String
+	var isError: Bool = false
+
+	var body: some View {
+		HStack(alignment: .top) {
+			Text(label + ":")
+				.foregroundStyle(.secondary)
+			Spacer()
+			Text(value)
+				.foregroundStyle(isError ? .red : .primary)
+				.multilineTextAlignment(.trailing)
+		}
+	}
+}
+
+/// Result of checking cache status
+struct CacheCheckResult {
+	let exists: Bool
+	let ageSeconds: TimeInterval?
+	let todayTotal: Double?
+	let moveGoal: Double?
+	let hourlyDataCount: Int?
+	let latestSampleTimestamp: Date?
+	let error: String?
 }
