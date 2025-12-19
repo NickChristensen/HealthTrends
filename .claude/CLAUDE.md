@@ -113,6 +113,23 @@ For more details, use the tool `beads:quickstart`, run `bd quickstart`, or read 
 ## Development Environment
 - **Default Simulator**: Always use iPhone 17 Pro for builds and testing
 
+## Testing
+
+This project has comprehensive test coverage for the widget timeline and shared package utilities.
+
+**See [`HealthTrendsWidgetTests/README.md`](../HealthTrendsWidgetTests/README.md)** for complete testing documentation, including:
+- How to run tests (Xcode + CLI)
+- Test philosophy (deterministic fixtures, exact assertions)
+- PRD scenario coverage
+- How to add new tests
+- CI/CD integration examples
+
+Quick start:
+```bash
+# Run all widget integration tests
+xcodebuild test -quiet -scheme HealthTrendsWidgetTests -destination 'platform=iOS Simulator,OS=latest'
+```
+
 ## Project Structure
 
 The project consists of three main targets with the following structure:
