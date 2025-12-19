@@ -15,18 +15,21 @@ struct SparseHistoricalDataTests {
 	@Test("Widget handles sparse historical data without crashing or NaN")
 	@MainActor
 	func testSparseHistoricalData() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
+        let mockQueryService = MockHealthKitQueryService()
+        let mockAverageCache = MockAverageDataCacheManager()
+        let mockTodayCache = MockTodayEnergyCacheManager()
 
-		// GIVEN: Mock HealthKit with only 2 historical Saturdays
-		let mockQueryService = MockHealthKitQueryService()
 		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.edgeCase_sparseHistoricalData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+        let provider = EnergyWidgetProvider(
+            healthKitService: mockQueryService,
+            averageCacheManager: mockAverageCache,
+            todayCacheManager: mockTodayCache
+        )
 		let config = EnergyWidgetConfigurationIntent()
 
 		// WHEN: Timeline provider generates entry
@@ -58,18 +61,21 @@ struct SparseHistoricalDataTests {
 	@Test("Sparse historical data produces same values as full dataset")
 	@MainActor
 	func testSparseDataMatchesExpectedValues() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
+        let mockQueryService = MockHealthKitQueryService()
+        let mockAverageCache = MockAverageDataCacheManager()
+        let mockTodayCache = MockTodayEnergyCacheManager()
 
-		// GIVEN: Mock HealthKit with only 2 historical Saturdays
-		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.edgeCase_sparseHistoricalData()
+        let (samples, moveGoal, currentTime, _) = HealthKitFixtures.edgeCase_sparseHistoricalData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+        let provider = EnergyWidgetProvider(
+            healthKitService: mockQueryService,
+            averageCacheManager: mockAverageCache,
+            todayCacheManager: mockTodayCache
+        )
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
@@ -92,17 +98,21 @@ struct SparseHistoricalDataTests {
 	@MainActor
 	func testAverageDataStructure() async throws {
 		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
+        let mockQueryService = MockHealthKitQueryService()
+        let mockAverageCache = MockAverageDataCacheManager()
+        let mockTodayCache = MockTodayEnergyCacheManager()
 
-		// GIVEN: Sparse historical data setup
-		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.edgeCase_sparseHistoricalData()
+        let (samples, moveGoal, currentTime, _) = HealthKitFixtures.edgeCase_sparseHistoricalData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+        let provider = EnergyWidgetProvider(
+            healthKitService: mockQueryService,
+            averageCacheManager: mockAverageCache,
+            todayCacheManager: mockTodayCache
+        )
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
