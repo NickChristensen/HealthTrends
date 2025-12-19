@@ -36,13 +36,19 @@ public struct TodayEnergyCache: Codable {
 }
 
 /// Manager for reading/writing today's energy cache to App Group container
-public final class TodayEnergyCacheManager {
+public class TodayEnergyCacheManager {
 	public static let shared = TodayEnergyCacheManager()
 
-	private let appGroupIdentifier = "group.com.healthtrends.shared"
-	private let fileName = "energy-data.json"
+	private let appGroupIdentifier: String
+	private let fileName: String
 
-	private init() {}
+	public init(
+		appGroupIdentifier: String = "group.com.healthtrends.shared",
+		fileName: String = "energy-data.json"
+	) {
+		self.appGroupIdentifier = appGroupIdentifier
+		self.fileName = fileName
+	}
 
 	/// Get the shared container URL
 	private var sharedContainerURL: URL? {

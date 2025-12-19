@@ -108,15 +108,25 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		subsystem: "com.finelycrafted.HealthTrends", category: "DailyActiveEnergyWidget")
 
 	private let healthKitService: HealthDataProvider
+	private let averageCacheManager: AverageDataCacheManager
+	private let todayCacheManager: TodayEnergyCacheManager
 
 	// Production initializer (used by widget system)
 	init() {
 		self.healthKitService = HealthKitQueryService()
+		self.averageCacheManager = AverageDataCacheManager()
+		self.todayCacheManager = TodayEnergyCacheManager.shared
 	}
 
-	// Test initializer (accepts any HealthDataProvider for dependency injection)
-	init(healthKitService: HealthDataProvider) {
+	// Test initializer with dependency injection for all dependencies
+	init(
+		healthKitService: HealthDataProvider,
+		averageCacheManager: AverageDataCacheManager = AverageDataCacheManager(),
+		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared
+	) {
 		self.healthKitService = healthKitService
+		self.averageCacheManager = averageCacheManager
+		self.todayCacheManager = todayCacheManager
 	}
 
 	func placeholder(in context: Context) -> EnergyWidgetEntry {
@@ -249,8 +259,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let weekday = Weekday(date: date)!
 
 		// Load average data for the NEW weekday
-		let cacheManager = AverageDataCacheManager()
-		let averageCache = cacheManager.load(for: weekday)
+		let averageCache = averageCacheManager.load(for: weekday)
 
 		// Normalize timestamps to match the midnight date
 		let cachedData = averageCache?.toHourlyEnergyData() ?? []
@@ -276,7 +285,6 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		-> EnergyWidgetEntry
 	{
 		let healthKit = healthKitService  // Use injected service
-		let cacheManager = AverageDataCacheManager()
 
 		// Try to get fresh today's data AND move goal from HealthKit
 		let todayData: [HourlyEnergyData]
@@ -298,7 +306,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			// Write today's data to cache for future widget refreshes
 			// This ensures cache stays fresh even if user rarely opens the app
 			do {
-				try TodayEnergyCacheManager.shared.writeEnergyData(
+				try todayCacheManager.writeEnergyData(
 					todayTotal: todayTotal,
 					moveGoal: moveGoal,
 					todayHourlyData: hourlyData,
@@ -349,12 +357,12 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 			// Try to read TodayEnergyCache cache (today only)
 			do {
-				let todayCache = try TodayEnergyCacheManager.shared.readEnergyData()
+				let todayCache = try todayCacheManager.readEnergyData()
 				let calendar = Calendar.current
 
 				// Read average data from weekday-specific cache
 				let weekday = Weekday(date: date)!
-				let averageCache = cacheManager.load(for: weekday)
+				let averageCache = averageCacheManager.load(for: weekday)
 				let cachedAverageData = averageCache?.toHourlyEnergyData() ?? []
 				let averageHourlyData = normalizeTimestamps(cachedAverageData, to: date)
 				let projectedTotal = averageCache?.projectedTotal ?? 0
@@ -510,7 +518,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let projectedTotal: Double
 
 		let weekday = Weekday(date: date)!
-		if cacheManager.shouldRefresh(for: weekday) {
+		if averageCacheManager.shouldRefresh(for: weekday) {
 			// Cache is stale or missing - refresh it
 			Self.logger.info(
 				"Average data cache for weekday \(weekday.rawValue) is stale/missing - refreshing from HealthKit"
@@ -533,7 +541,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					cacheVersion: 1
 				)
 				do {
-					try cacheManager.save(cache, for: weekday)
+					try averageCacheManager.save(cache, for: weekday)
 					Self.logger.info("   ✅ Saved average data to weekday \(weekday.rawValue) cache")
 				} catch {
 					Self.logger.error("   ❌ CRITICAL: Failed to save average cache")
@@ -550,7 +558,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 					"   Error type: \(String(describing: type(of: error)), privacy: .public)")
 
 				// Try to use stale cache as fallback
-				if let staleCache = cacheManager.load(for: weekday) {
+				if let staleCache = averageCacheManager.load(for: weekday) {
 					let cachedData = staleCache.toHourlyEnergyData()
 					averageData = normalizeTimestamps(cachedData, to: date)
 					projectedTotal = staleCache.projectedTotal
@@ -588,7 +596,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			}
 		} else {
 			// Use fresh cache
-			if let cache = cacheManager.load(for: weekday) {
+			if let cache = averageCacheManager.load(for: weekday) {
 				let cachedData = cache.toHourlyEnergyData()
 				averageData = normalizeTimestamps(cachedData, to: date)
 				projectedTotal = cache.projectedTotal
@@ -662,12 +670,11 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		-> EnergyWidgetEntry
 	{
 		do {
-			let todayCache = try TodayEnergyCacheManager.shared.readEnergyData()
+			let todayCache = try todayCacheManager.readEnergyData()
 
 			// Read average data from weekday-specific cache
-			let cacheManager = AverageDataCacheManager()
 			let weekday = Weekday(date: date)!
-			let averageCache = cacheManager.load(for: weekday)
+			let averageCache = averageCacheManager.load(for: weekday)
 			let cachedAverageData = averageCache?.toHourlyEnergyData() ?? []
 			let averageHourlyData = normalizeTimestamps(cachedAverageData, to: date)
 			let projectedTotal = averageCache?.projectedTotal ?? 0
@@ -714,7 +721,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	/// Load cached move goal (goals don't change frequently)
 	private func loadCachedMoveGoal() -> Double {
 		do {
-			let sharedData = try TodayEnergyCacheManager.shared.readEnergyData()
+			let sharedData = try todayCacheManager.readEnergyData()
 			return sharedData.moveGoal
 		} catch {
 			return 800  // Default fallback

@@ -13,18 +13,22 @@ struct StaleDataTests {
 	@Test("No today line when data is from previous day")
 	@MainActor
 	func testStaleDataFromPreviousDay() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Mock HealthKit with Scenario 3 data (Friday data on Saturday)
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario3_staleData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 		let config = EnergyWidgetConfigurationIntent()
 
 		// WHEN: Timeline provider generates entry
@@ -50,17 +54,21 @@ struct StaleDataTests {
 	@Test("Data time shows current clock time in average-only view")
 	@MainActor
 	func testDataTimeFromPreviousDay() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 3 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario3_staleData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
@@ -80,17 +88,21 @@ struct StaleDataTests {
 	@Test("Average line shows Saturday pattern despite Friday data")
 	@MainActor
 	func testAverageForCorrectWeekday() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 3 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario3_staleData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
