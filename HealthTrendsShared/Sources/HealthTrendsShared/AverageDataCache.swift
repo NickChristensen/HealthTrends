@@ -288,6 +288,14 @@ public final class AverageDataCacheManager: Sendable {
 		let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
 		return cache.cachedAt < thirtyDaysAgo
 	}
+
+	/// Clear all cached data (useful for testing)
+	public func clearCache() {
+		guard let fileURL = fileURL else { return }
+
+		try? FileManager.default.removeItem(at: fileURL)
+		Self.logger.debug("Cleared average data cache")
+	}
 }
 
 public enum CacheError: Error {

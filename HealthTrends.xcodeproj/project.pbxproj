@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		011296462EF4B7ED00DC0450 /* HealthTrendsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 011296452EF4B7ED00DC0450 /* HealthTrendsShared */; };
 		0149D0882ED37CEC001DCAE6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0149D0872ED37CEC001DCAE6 /* AppIcon.icon */; };
 		0149D0892ED37CEC001DCAE6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0149D0872ED37CEC001DCAE6 /* AppIcon.icon */; };
 		0149D0EA2ED3C1EB001DCAE6 /* HealthTrendsShared in Frameworks */ = {isa = PBXBuildFile; productRef = 0149D0E92ED3C1EB001DCAE6 /* HealthTrendsShared */; };
@@ -19,6 +20,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		011296252EF47E2200DC0450 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0176C61D2E91B08F003EFE68 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01CFC1DF2EC7AB8F003DC2E6;
+			remoteInfo = DailyActiveEnergyWidgetExtension;
+		};
 		01CFC1EE2EC7AB90003DC2E6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0176C61D2E91B08F003EFE68 /* Project object */;
@@ -43,6 +51,23 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		011296112EF47C7600DC0450 /* HealthTrendsWidgetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HealthTrendsWidgetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		011296272EF47E7B00DC0450 /* DailyActiveEnergyWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyActiveEnergyWidget.swift; sourceTree = "<group>"; };
+		011296282EF47E7B00DC0450 /* DailyActiveEnergyWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyActiveEnergyWidgetBundle.swift; sourceTree = "<group>"; };
+		011296292EF47E7B00DC0450 /* EnergyChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyChartView.swift; sourceTree = "<group>"; };
+		0112962A2EF47E7B00DC0450 /* EnergyTrendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyTrendView.swift; sourceTree = "<group>"; };
+		0112962B2EF47E7B00DC0450 /* HeaderStatistic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderStatistic.swift; sourceTree = "<group>"; };
+		0112962C2EF47E7B00DC0450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		0112962D2EF47E7B00DC0450 /* RefreshWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshWidgetIntent.swift; sourceTree = "<group>"; };
+		0112962E2EF47E7B00DC0450 /* WidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetConfigurationIntent.swift; sourceTree = "<group>"; };
+		011296312EF47F0200DC0450 /* DailyActiveEnergyWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyActiveEnergyWidget.swift; sourceTree = "<group>"; };
+		011296322EF47F0200DC0450 /* DailyActiveEnergyWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyActiveEnergyWidgetBundle.swift; sourceTree = "<group>"; };
+		011296332EF47F0200DC0450 /* EnergyChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyChartView.swift; sourceTree = "<group>"; };
+		011296342EF47F0200DC0450 /* EnergyTrendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyTrendView.swift; sourceTree = "<group>"; };
+		011296352EF47F0200DC0450 /* HeaderStatistic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderStatistic.swift; sourceTree = "<group>"; };
+		011296362EF47F0200DC0450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		011296372EF47F0200DC0450 /* RefreshWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshWidgetIntent.swift; sourceTree = "<group>"; };
+		011296382EF47F0200DC0450 /* WidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		0149D0872ED37CEC001DCAE6 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		0176C6252E91B08F003EFE68 /* HealthTrends.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HealthTrends.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01CFC1E02EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyActiveEnergyWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +77,25 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0112963E2EF4B70A00DC0450 /* Exceptions for "DailyActiveEnergyWidget" folder in "HealthTrendsWidgetTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DailyActiveEnergyWidget.swift,
+				EnergyChartView.swift,
+				EnergyTrendView.swift,
+				HeaderStatistic.swift,
+				RefreshWidgetIntent.swift,
+				WidgetConfigurationIntent.swift,
+			);
+			target = 011296102EF47C7600DC0450 /* HealthTrendsWidgetTests */;
+		};
+		011296442EF4B79A00DC0450 /* Exceptions for "HealthTrends" folder in "HealthTrendsWidgetTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Utilities/TextMeasurement.swift,
+			);
+			target = 011296102EF47C7600DC0450 /* HealthTrendsWidgetTests */;
+		};
 		018DCA812EC97B5F001E5652 /* Exceptions for "HealthTrends" folder in "DailyActiveEnergyWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -70,10 +114,16 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		011296122EF47C7600DC0450 /* HealthTrendsWidgetTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HealthTrendsWidgetTests;
+			sourceTree = "<group>";
+		};
 		0176C6272E91B08F003EFE68 /* HealthTrends */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				018DCA812EC97B5F001E5652 /* Exceptions for "HealthTrends" folder in "DailyActiveEnergyWidgetExtension" target */,
+				011296442EF4B79A00DC0450 /* Exceptions for "HealthTrends" folder in "HealthTrendsWidgetTests" target */,
 			);
 			path = HealthTrends;
 			sourceTree = "<group>";
@@ -82,6 +132,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				01CFC1F42EC7AB90003DC2E6 /* Exceptions for "DailyActiveEnergyWidget" folder in "DailyActiveEnergyWidgetExtension" target */,
+				0112963E2EF4B70A00DC0450 /* Exceptions for "DailyActiveEnergyWidget" folder in "HealthTrendsWidgetTests" target */,
 			);
 			path = DailyActiveEnergyWidget;
 			sourceTree = "<group>";
@@ -89,6 +140,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0112960E2EF47C7600DC0450 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				011296462EF4B7ED00DC0450 /* HealthTrendsShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176C6222E91B08F003EFE68 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -112,12 +171,43 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0112962F2EF47E7B00DC0450 /* DailyActiveEnergyWidget */ = {
+			isa = PBXGroup;
+			children = (
+				011296272EF47E7B00DC0450 /* DailyActiveEnergyWidget.swift */,
+				011296282EF47E7B00DC0450 /* DailyActiveEnergyWidgetBundle.swift */,
+				011296292EF47E7B00DC0450 /* EnergyChartView.swift */,
+				0112962A2EF47E7B00DC0450 /* EnergyTrendView.swift */,
+				0112962B2EF47E7B00DC0450 /* HeaderStatistic.swift */,
+				0112962C2EF47E7B00DC0450 /* Info.plist */,
+				0112962D2EF47E7B00DC0450 /* RefreshWidgetIntent.swift */,
+				0112962E2EF47E7B00DC0450 /* WidgetConfigurationIntent.swift */,
+			);
+			path = DailyActiveEnergyWidget;
+			sourceTree = "<group>";
+		};
+		011296392EF47F0200DC0450 /* DailyActiveEnergyWidget */ = {
+			isa = PBXGroup;
+			children = (
+				011296312EF47F0200DC0450 /* DailyActiveEnergyWidget.swift */,
+				011296322EF47F0200DC0450 /* DailyActiveEnergyWidgetBundle.swift */,
+				011296332EF47F0200DC0450 /* EnergyChartView.swift */,
+				011296342EF47F0200DC0450 /* EnergyTrendView.swift */,
+				011296352EF47F0200DC0450 /* HeaderStatistic.swift */,
+				011296362EF47F0200DC0450 /* Info.plist */,
+				011296372EF47F0200DC0450 /* RefreshWidgetIntent.swift */,
+				011296382EF47F0200DC0450 /* WidgetConfigurationIntent.swift */,
+			);
+			path = DailyActiveEnergyWidget;
+			sourceTree = "<group>";
+		};
 		0176C61C2E91B08F003EFE68 = {
 			isa = PBXGroup;
 			children = (
 				01CFC1F62EC7AC2D003DC2E6 /* DailyActiveEnergyWidgetExtension.entitlements */,
 				0176C6272E91B08F003EFE68 /* HealthTrends */,
 				01CFC1E62EC7AB8F003DC2E6 /* DailyActiveEnergyWidget */,
+				011296122EF47C7600DC0450 /* HealthTrendsWidgetTests */,
 				01CFC1E12EC7AB8F003DC2E6 /* Frameworks */,
 				0176C6262E91B08F003EFE68 /* Products */,
 				0149D0872ED37CEC001DCAE6 /* AppIcon.icon */,
@@ -129,6 +219,7 @@
 			children = (
 				0176C6252E91B08F003EFE68 /* HealthTrends.app */,
 				01CFC1E02EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension.appex */,
+				011296112EF47C7600DC0450 /* HealthTrendsWidgetTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,6 +227,8 @@
 		01CFC1E12EC7AB8F003DC2E6 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				0112962F2EF47E7B00DC0450 /* DailyActiveEnergyWidget */,
+				011296392EF47F0200DC0450 /* DailyActiveEnergyWidget */,
 				01CFC1E22EC7AB8F003DC2E6 /* WidgetKit.framework */,
 				01CFC1E42EC7AB8F003DC2E6 /* SwiftUI.framework */,
 			);
@@ -145,6 +238,30 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		011296102EF47C7600DC0450 /* HealthTrendsWidgetTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 011296172EF47C7600DC0450 /* Build configuration list for PBXNativeTarget "HealthTrendsWidgetTests" */;
+			buildPhases = (
+				0112960D2EF47C7600DC0450 /* Sources */,
+				0112960E2EF47C7600DC0450 /* Frameworks */,
+				0112960F2EF47C7600DC0450 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				011296262EF47E2200DC0450 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				011296122EF47C7600DC0450 /* HealthTrendsWidgetTests */,
+			);
+			name = HealthTrendsWidgetTests;
+			packageProductDependencies = (
+				011296452EF4B7ED00DC0450 /* HealthTrendsShared */,
+			);
+			productName = HealthTrendsWidgetTests;
+			productReference = 011296112EF47C7600DC0450 /* HealthTrendsWidgetTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		0176C6242E91B08F003EFE68 /* HealthTrends */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0176C6302E91B090003EFE68 /* Build configuration list for PBXNativeTarget "HealthTrends" */;
@@ -202,9 +319,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2610;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					011296102EF47C7600DC0450 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					0176C6242E91B08F003EFE68 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -232,11 +352,19 @@
 			targets = (
 				0176C6242E91B08F003EFE68 /* HealthTrends */,
 				01CFC1DF2EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension */,
+				011296102EF47C7600DC0450 /* HealthTrendsWidgetTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0112960F2EF47C7600DC0450 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176C6232E91B08F003EFE68 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +384,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0112960D2EF47C7600DC0450 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176C6212E91B08F003EFE68 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -273,6 +408,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		011296262EF47E2200DC0450 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 01CFC1DF2EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension */;
+			targetProxy = 011296252EF47E2200DC0450 /* PBXContainerItemProxy */;
+		};
 		01CFC1EF2EC7AB90003DC2E6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 01CFC1DF2EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension */;
@@ -281,6 +421,46 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		011296152EF47C7600DC0450 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3P952W6B9K;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finelycrafted.HealthTrendsWidgetTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		011296162EF47C7600DC0450 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3P952W6B9K;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finelycrafted.HealthTrendsWidgetTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		0176C62E2E91B090003EFE68 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -545,6 +725,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		011296172EF47C7600DC0450 /* Build configuration list for PBXNativeTarget "HealthTrendsWidgetTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				011296152EF47C7600DC0450 /* Debug */,
+				011296162EF47C7600DC0450 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		0176C6202E91B08F003EFE68 /* Build configuration list for PBXProject "HealthTrends" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -582,6 +771,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		011296452EF4B7ED00DC0450 /* HealthTrendsShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0149D0E82ED3C1EB001DCAE6 /* XCLocalSwiftPackageReference "HealthTrendsShared" */;
+			productName = HealthTrendsShared;
+		};
 		0149D0E92ED3C1EB001DCAE6 /* HealthTrendsShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HealthTrendsShared;

@@ -4,7 +4,8 @@ import os
 
 /// Shared HealthKit query service for use by both app and widget
 /// Provides efficient queries for energy data
-public final class HealthKitQueryService: Sendable {
+/// Note: Not final to allow test mocking via subclassing
+open class HealthKitQueryService: Sendable {
 	private let healthStore: HKHealthStore
 	private let calendar: Calendar
 	private static let logger = Logger(
@@ -24,7 +25,7 @@ public final class HealthKitQueryService: Sendable {
 	/// Note: HealthKit privacy protections mean denied read permissions don't throw errors -
 	/// they just return empty results. We use a heuristic: if user has any active energy data
 	/// in last 30 days, assume permission granted. If 0 samples, assume permission denied.
-	public func checkReadAuthorization() async -> Bool {
+	open func checkReadAuthorization() async -> Bool {
 		let queryStartTime = Date()
 
 		guard HKHealthStore.isHealthDataAvailable() else {
@@ -133,7 +134,7 @@ public final class HealthKitQueryService: Sendable {
 	/// Returns tuple of:
 	/// - data: Cumulative calories at each hour boundary
 	/// - latestSampleTimestamp: Timestamp of most recent HealthKit sample (nil if no samples)
-	public func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
+	open func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
 		let now = Date()
 		let startOfDay = calendar.startOfDay(for: now)
 
@@ -176,7 +177,7 @@ public final class HealthKitQueryService: Sendable {
 	/// Fetch average Active Energy data from past occurrences of the current weekday
 	/// Returns "Total" and "Average" (see CLAUDE.md)
 	/// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
-	public func fetchAverageData(for weekday: Int? = nil) async throws -> (
+	open func fetchAverageData(for weekday: Int? = nil) async throws -> (
 		total: Double, hourlyData: [HourlyEnergyData]
 	) {
 		let now = Date()
@@ -209,7 +210,7 @@ public final class HealthKitQueryService: Sendable {
 	/// Fetch today's active energy goal from Activity Summary
 	/// iOS supports weekday-specific goals, so this must be queried fresh each day
 	/// Returns 0 if no goal is set or if running on simulator
-	public func fetchMoveGoal() async throws -> Double {
+	open func fetchMoveGoal() async throws -> Double {
 		#if targetEnvironment(simulator)
 			// Simulator doesn't have Fitness app, return mock goal
 			return 800.0
