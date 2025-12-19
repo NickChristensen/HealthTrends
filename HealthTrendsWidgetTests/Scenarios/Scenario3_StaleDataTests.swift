@@ -5,7 +5,7 @@ import HealthKit
 
 /// Integration tests for PRD Scenario 3: Stale Data (Previous Day)
 ///
-/// Scenario: Saturday, 10:00 AM but last HealthKit data is from Friday 11 PM (11 hours old, different day)
+/// Scenario: Saturday, 10:23 AM but last HealthKit data is from Friday 10:47 PM (11 hours 36 min old, different day)
 /// Expected: No "Today" line shown, Average-only display for Saturday
 @Suite("Scenario 3: Stale Data (Previous Day)")
 struct StaleDataTests {
@@ -13,8 +13,8 @@ struct StaleDataTests {
 	@Test("No today line when data is from previous day")
 	@MainActor
 	func testStaleDataFromPreviousDay() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Mock HealthKit with Scenario 3 data (Friday data on Saturday)
 		let mockQueryService = MockHealthKitQueryService()
@@ -47,15 +47,15 @@ struct StaleDataTests {
 		#expect(entry.moveGoal == 900.0)
 	}
 
-	@Test("Data time reflects last available data (previous day)")
+	@Test("Data time shows current clock time in average-only view")
 	@MainActor
 	func testDataTimeFromPreviousDay() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 3 setup
 		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario3_staleData()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario3_staleData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
@@ -65,22 +65,23 @@ struct StaleDataTests {
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
-		// THEN: Data time should be Friday 11 PM
+		// THEN: Data time should be current clock time (Saturday 10:23 AM), not Friday's stale time
+		// In average-only view, we show the current time as the data time marker
 		let calendar = Calendar.current
+		let entryHour = calendar.component(.hour, from: entry.date)
+		let entryMinute = calendar.component(.minute, from: entry.date)
 		let entryWeekday = calendar.component(.weekday, from: entry.date)
-		let currentWeekday = calendar.component(.weekday, from: currentTime)
 
-		// Entry date should be from Friday (weekday 6), not Saturday (weekday 7)
-		// OR entry date should be significantly before current time
-		let timeDifference = currentTime.timeIntervalSince(entry.date)
-		#expect(timeDifference >= 10 * 3600)  // At least 10 hours old
+		#expect(entryWeekday == 7)  // Saturday
+		#expect(entryHour == 10)
+		#expect(entryMinute == 23)
 	}
 
 	@Test("Average line shows Saturday pattern despite Friday data")
 	@MainActor
 	func testAverageForCorrectWeekday() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 3 setup
 		let mockQueryService = MockHealthKitQueryService()

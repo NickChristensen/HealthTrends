@@ -93,20 +93,22 @@ enum SampleHelpers {
 	/// Pattern simulates typical daily activity:
 	/// - Low overnight (0-6 AM): 30 cal
 	/// - Gradual increase morning (6 AM - noon): 225 cal
-	/// - Peak afternoon (noon - 3 PM): 255 cal (cumulative: 510)
-	/// - Continued activity (3 PM - midnight): 503 cal
+	/// - Peak afternoon (noon - 3 PM): 215 cal (cumulative: 470)
+	/// - 3:00-3:40 PM: 40 cal (cumulative at 3:40: 510)
+	/// - 3:40 PM - midnight: 503 cal
 	/// Total: 1013 cal/day (exactly)
 	private static func generateRealisticDailyPattern(seed: Int) -> [Double] {
-		// Deterministic pattern: exactly 510 by 3 PM, exactly 1013 total
+		// Deterministic pattern: exactly 510 by 3:40 PM, exactly 1013 total
 		return [
 			// Midnight - 6 AM (sleeping): 30 cal
 			5, 5, 5, 5, 5, 5,
 			// 6 AM - Noon (morning activity): 225 cal
 			25, 30, 35, 40, 45, 50,
-			// Noon - 3 PM (peak afternoon): 255 cal -> cumulative: 510
-			75, 85, 95,
-			// 3 PM - Midnight (continued activity + wind-down): 503 cal
-			88, 82, 78, 67, 58, 47, 38, 27, 18
+			// Noon - 3 PM (peak afternoon): 215 cal -> cumulative: 470
+			70, 75, 70,
+			// 3-4 PM: 60 cal (at 3:40 PM = 470 + 40 = 510)
+			// 4 PM - Midnight (continued activity + wind-down): 483 cal
+			60, 85, 82, 78, 67, 58, 47, 38, 28
 		]
 	}
 

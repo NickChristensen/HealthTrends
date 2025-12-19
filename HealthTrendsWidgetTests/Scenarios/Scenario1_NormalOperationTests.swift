@@ -5,20 +5,20 @@ import HealthKit
 
 /// Integration tests for PRD Scenario 1: Normal Operation (Fresh Data)
 ///
-/// Scenario: Saturday, 3:00 PM with up-to-date HealthKit data
-/// Expected: Today=550, Average=510, Total=1013, Move Goal=900
+/// Scenario: Saturday, 3:43 PM with HealthKit data current to 3:40 PM (3 minutes old)
+/// Expected: Today=550, Average=510, Total=1013, Move Goal=900, Data Time=3:40 PM
 @Suite("Scenario 1: Normal Operation (Fresh Data)")
 struct NormalOperationTests {
 
-	@Test("Saturday 3 PM with fresh data produces correct entry")
+	@Test("Saturday 3:43 PM with data current to 3:40 PM produces correct entry")
 	@MainActor
 	func testNormalOperation() async throws {
-		// Clear any existing cache to ensure fresh queries
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Mock HealthKit with Scenario 1 data
 		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime) = HealthKitFixtures.scenario1_normalOperation()
+		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
@@ -49,24 +49,24 @@ struct NormalOperationTests {
 		#expect(entry.todayHourlyData.count >= 3)
 		#expect(entry.averageHourlyData.count > 0)
 
-		// Validate Data Time is at 3 PM Saturday
+		// Validate Data Time is at 3:40 PM Saturday
 		let calendar = Calendar.current
 		let dataHour = calendar.component(.hour, from: entry.date)
 		let dataMinute = calendar.component(.minute, from: entry.date)
 
 		#expect(dataHour == 15)
-		#expect(dataMinute == 0)
+		#expect(dataMinute == 40)
 	}
 
 	@Test("Today line contains expected data structure")
 	@MainActor
 	func testTodayDataStructure() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 1 setup
 		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime) = HealthKitFixtures.scenario1_normalOperation()
+		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
@@ -94,7 +94,7 @@ struct NormalOperationTests {
 			#expect(lastPoint.calories == entry.todayTotal)
 		}
 
-		// Data should stop at current time (3 PM)
+		// Data should stop at data time (3:40 PM)
 		if let lastPoint = todayData.last {
 			let calendar = Calendar.current
 			let lastHour = calendar.component(.hour, from: lastPoint.hour)
@@ -105,12 +105,12 @@ struct NormalOperationTests {
 	@Test("Average line projects to midnight")
 	@MainActor
 	func testAverageProjection() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 1 setup
 		let mockQueryService = MockHealthKitQueryService()
-		let (samples, moveGoal, currentTime) = HealthKitFixtures.scenario1_normalOperation()
+		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)

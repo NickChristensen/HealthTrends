@@ -5,18 +5,18 @@ import HealthKit
 
 /// Integration tests for PRD Scenario 2: Delayed Sync
 ///
-/// Scenario: Saturday, 3:00 PM but data only current to 2:15 PM (45 minutes stale)
+/// Scenario: Saturday, 3:43 PM but data only current to 2:15 PM (88 minutes stale)
 /// Expected: Data Time shows staleness, Today line stops at 2:15 PM, Average continues projecting
 @Suite("Scenario 2: Delayed Sync")
 struct DelayedSyncTests {
 
-	@Test("Data time reflects staleness when HealthKit data is 45 minutes old")
+	@Test("Data time reflects staleness when HealthKit data is 88 minutes old")
 	@MainActor
 	func testDelayedSync() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
-		// GIVEN: Mock HealthKit with Scenario 2 data (stale by 45 min)
+		// GIVEN: Mock HealthKit with Scenario 2 data (stale by 88 min)
 		let mockQueryService = MockHealthKitQueryService()
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
@@ -40,7 +40,7 @@ struct DelayedSyncTests {
 		#expect(dataHour == 14)
 		#expect(dataMinute == 15)
 
-		// Today total should stop at 2:15 PM (not include 2:15-3:00 PM activity)
+		// Today total should stop at 2:15 PM (not include 2:15-3:43 PM activity)
 		// This will be less than Scenario 1's 550 cal
 		#expect(entry.todayTotal < 550.0)
 
@@ -54,8 +54,8 @@ struct DelayedSyncTests {
 	@Test("Today line stops at data time, not current time")
 	@MainActor
 	func testTodayLineStopsAtDataTime() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 2 setup
 		let mockQueryService = MockHealthKitQueryService()
@@ -86,8 +86,8 @@ struct DelayedSyncTests {
 	@Test("Average line continues to project despite stale today data")
 	@MainActor
 	func testAverageProjectsIndependently() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Scenario 2 setup
 		let mockQueryService = MockHealthKitQueryService()

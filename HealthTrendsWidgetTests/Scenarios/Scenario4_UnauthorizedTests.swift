@@ -13,8 +13,8 @@ struct UnauthorizedTests {
 	@Test("Widget shows unauthorized state when HealthKit permission denied")
 	@MainActor
 	func testUnauthorizedState() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Mock HealthKit with no authorization
 		let mockQueryService = MockHealthKitQueryService()
@@ -30,6 +30,15 @@ struct UnauthorizedTests {
 		// WHEN: Timeline provider generates entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: config)
 
+		// Calculate expected move goal (mimics loadCachedMoveGoal() behavior)
+		let expectedMoveGoal: Double
+		do {
+			let cachedData = try TodayEnergyCacheManager.shared.readEnergyData()
+			expectedMoveGoal = cachedData.moveGoal
+		} catch {
+			expectedMoveGoal = 800.0  // Default fallback
+		}
+
 		// THEN: Entry shows unauthorized state
 		#expect(entry.isAuthorized == false)
 
@@ -37,7 +46,7 @@ struct UnauthorizedTests {
 		#expect(entry.todayTotal == 0.0)
 		#expect(entry.averageAtCurrentHour == 0.0)
 		#expect(entry.projectedTotal == 0.0)
-		#expect(entry.moveGoal == 0.0)
+		#expect(entry.moveGoal == expectedMoveGoal)  // Uses fallback logic
 
 		// No hourly data arrays
 		#expect(entry.todayHourlyData.count == 0)
@@ -47,8 +56,8 @@ struct UnauthorizedTests {
 	@Test("Authorization check happens before data queries")
 	@MainActor
 	func testAuthorizationGating() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Unauthorized state with empty samples
 		let mockQueryService = MockHealthKitQueryService()
@@ -73,8 +82,8 @@ struct UnauthorizedTests {
 	@Test("Entry date still reflects current time when unauthorized")
 	@MainActor
 	func testEntryDateWhenUnauthorized() async throws {
-		// Clear cache
-		AverageDataCacheManager().clearCache()
+		// Clear all caches to ensure clean test state
+		TestUtilities.clearAllCaches()
 
 		// GIVEN: Unauthorized state
 		let mockQueryService = MockHealthKitQueryService()

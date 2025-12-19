@@ -37,6 +37,11 @@ class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
 	}
 
 	override open func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
+		// If not authorized, throw error (simulates real HealthKit behavior)
+		guard mockAuthorized else {
+			throw HKError(.errorAuthorizationDenied)
+		}
+
 		// Filter samples to only today
 		let calendar = Calendar.current
 		let now = mockCurrentTime
@@ -79,10 +84,19 @@ class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
 	}
 
 	override open func fetchMoveGoal() async throws -> Double {
+		// If not authorized, throw error (simulates real HealthKit behavior)
+		guard mockAuthorized else {
+			throw HKError(.errorAuthorizationDenied)
+		}
 		return mockMoveGoal
 	}
 
 	override open func fetchAverageData(for weekday: Int? = nil) async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+		// If not authorized, throw error (simulates real HealthKit behavior)
+		guard mockAuthorized else {
+			throw HKError(.errorAuthorizationDenied)
+		}
+
 		// Get matching weekday from historical data
 		let calendar = Calendar.current
 		let now = mockCurrentTime
