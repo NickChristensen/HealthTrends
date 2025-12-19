@@ -93,6 +93,12 @@ public final class TodayEnergyCacheManager {
 		decoder.dateDecodingStrategy = .iso8601
 		return try decoder.decode(TodayEnergyCache.self, from: data)
 	}
+
+	/// Clear cached energy data (primarily for testing)
+	public func clearCache() {
+		guard let fileURL = fileURL else { return }
+		try? FileManager.default.removeItem(at: fileURL)
+	}
 }
 
 public enum TodayEnergyCacheError: Error {

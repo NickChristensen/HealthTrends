@@ -107,6 +107,18 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private static let logger = Logger(
 		subsystem: "com.finelycrafted.HealthTrends", category: "DailyActiveEnergyWidget")
 
+	private let healthKitService: HealthKitQueryService
+
+	// Production initializer (used by widget system)
+	init() {
+		self.healthKitService = HealthKitQueryService()
+	}
+
+	// Test initializer
+	init(healthKitService: HealthKitQueryService) {
+		self.healthKitService = healthKitService
+	}
+
 	func placeholder(in context: Context) -> EnergyWidgetEntry {
 		.placeholder
 	}
@@ -259,10 +271,11 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	}
 
 	/// Load fresh entry using hybrid approach: query HealthKit for today, use cached average
-	private func loadFreshEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) async
+	/// Note: Internal visibility for testing purposes
+	internal func loadFreshEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) async
 		-> EnergyWidgetEntry
 	{
-		let healthKit = HealthKitQueryService()
+		let healthKit = healthKitService  // Use injected service
 		let cacheManager = AverageDataCacheManager()
 
 		// Try to get fresh today's data AND move goal from HealthKit

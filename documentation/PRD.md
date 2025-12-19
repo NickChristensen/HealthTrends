@@ -276,30 +276,32 @@ Widget should show useful information even when HealthKit is unavailable.
 
 ### Scenario 1: Normal Operation (Fresh Data)
 
-**Context:** Saturday, 3:00 PM with up-to-date HealthKit data
+**Context:** Saturday, 3:43 PM with HealthKit data current to 3:40 PM (3 minutes old)
 
 **HealthKit Data:**
-- Today (this Saturday): 550 cal burned by 3 PM
-- Last 10 Saturdays by 3 PM: [520, 490, 510, 530, 500, 515, 505, 525, 510, 495]
+- Data Time: 3:40 PM (most recent HealthKit sample)
+- Today (this Saturday): 550 cal burned by 3:40 PM
+- Last 10 Saturdays by 3:40 PM: [520, 490, 510, 530, 500, 515, 505, 525, 510, 495]
 - Last 10 Saturdays full-day totals: [1050, 980, 1020, 1040, 990, 1010, 1000, 1030, 1015, 995]
 - Move goal for Saturdays: 900 cal
 
 **Widget Display:**
-- **Today:** 550 cal (actual progress)
-- **Average:** 510 cal (average of the 10 values above)
+- **Today:** 550 cal (actual progress through 3:40 PM)
+- **Average:** 510 cal (average of the 10 values above, interpolated to 3:40 PM)
 - **Total:** 1,013 cal (average of full-day totals)
 - **Move Goal:** 900 cal (dashed line on chart)
+- **Data Time marker:** 3:40 PM (vertical line on chart)
 
-**User Insight:** "I've burned 550 cal so far, which is 40 cal ahead of my typical Saturday pace at 3 PM. If I continue my average pattern, I'll finish the day around 1,013 cal, which exceeds my 900 cal move goal."
+**User Insight:** "At 3:43 PM, I've burned 550 cal as of 3:40 PM (most recent data), which is 40 cal ahead of my typical Saturday pace at this time. If I continue my average pattern, I'll finish the day around 1,013 cal, which exceeds my 900 cal move goal."
 
 ---
 
 ### Scenario 2: Delayed Sync
 
-**Context:** Saturday, 3:00 PM, but HealthKit data last updated at 2:15 PM (45 minutes ago)
+**Context:** Saturday, 3:43 PM, but HealthKit data last updated at 2:15 PM (88 minutes ago)
 
 **HealthKit Data:**
-- Data Time: 2:15 PM (45 minutes old)
+- Data Time: 2:15 PM (88 minutes old)
 - Today (this Saturday): 480 cal burned by 2:15 PM
 - Last 10 Saturdays by 2:15 PM: [average calculations same as Scenario 1]
 - Last 10 Saturdays full-day totals: [same as Scenario 1]
@@ -317,16 +319,17 @@ Widget should show useful information even when HealthKit is unavailable.
 
 ### Scenario 3: Stale Data (Previous Day)
 
-**Context:** Saturday, 10:00 AM, but last HealthKit data is from Friday 11:00 PM (11 hours ago, different day)
+**Context:** Saturday, 10:23 AM, but last HealthKit data is from Friday 10:47 PM (11 hours 36 minutes ago, different day)
 
 **HealthKit Data:**
-- Data Time: Friday 11:00 PM
+- Last HealthKit sample: Friday 10:47 PM
 - Latest cached data is from yesterday
 
 **Widget Display:**
 - Shows average-only view for Saturday
 - No "Today" line (stale data from wrong day)
 - Shows Saturday's average pattern
+- Data Time marker: 10:23 AM (current clock time, since displaying projected average only)
 
 **User Experience:** User understands there is no available data for today, and needs to open app or wait for sync. Widget remains useful by showing expected pattern for today.
 
