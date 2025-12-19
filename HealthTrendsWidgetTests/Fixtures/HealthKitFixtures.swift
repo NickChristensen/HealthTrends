@@ -143,4 +143,50 @@ enum HealthKitFixtures {
 		// Empty samples (simulates denied/not granted permission)
 		return ([], 0.0, now)
 	}
+
+	// MARK: - Edge Cases
+
+	/// Edge Case: Sparse Historical Data (Only 2 Saturdays)
+	/// Saturday, 3:43 PM with fresh data but only 2 historical Saturdays available (new user or sparse data)
+	///
+	/// Tests that the widget handles limited historical data gracefully:
+	/// - Data Time: 3:40 PM (fresh data)
+	/// - Today: 550 cal (same as Scenario 1)
+	/// - Average: 510 cal (average of only 2 Saturdays by 3:40 PM)
+	/// - Total: 1,013 cal (average of full-day totals from only 2 Saturdays)
+	/// - Move Goal: 900 cal
+	/// - Widget should handle sparse data gracefully (no NaN, no crashes)
+	static func edgeCase_sparseHistoricalData() -> (samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date) {
+		let saturday343PM = DateHelpers.createSaturday(hour: 15, minute: 43)  // Current time
+		let saturday340PM = DateHelpers.createSaturday(hour: 15, minute: 40)  // Data Time
+
+		// Today's samples: Same as Scenario 1 (~550 cal by 3:40 PM)
+		let todayCalories: [Double] = [
+			// 0-6 AM (sleeping): 30 cal
+			5, 5, 5, 5, 5, 5,
+			// 6 AM-noon (morning): 240 cal
+			30, 35, 40, 45, 45, 45,
+			// Noon-3 PM (afternoon): 220 cal
+			75, 75, 70,
+			// 3-3:40 PM (partial hour, ~40 min): 60 cal -> Total ~550 cal
+			60
+		]
+
+		let todaySamples = SampleHelpers.createDailySamples(
+			date: saturday340PM,  // Samples end at 3:40 PM
+			caloriesPerHour: todayCalories
+		)
+
+		// Only 2 Saturdays historical data (sparse data scenario)
+		// Should still average to:
+		// - ~510 cal by 3:40 PM (average at current hour)
+		// - ~1013 cal for full day (projected total)
+		let historicalSamples = SampleHelpers.createHistoricalWeekdayData(
+			weekday: 7,  // Saturday
+			occurrences: 2,  // Only 2 historical Saturdays instead of 10
+			endDate: saturday343PM
+		)
+
+		return (todaySamples + historicalSamples, 900.0, saturday343PM, saturday340PM)
+	}
 }
