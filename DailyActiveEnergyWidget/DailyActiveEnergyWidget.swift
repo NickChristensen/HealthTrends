@@ -107,15 +107,15 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private static let logger = Logger(
 		subsystem: "com.finelycrafted.HealthTrends", category: "DailyActiveEnergyWidget")
 
-	private let healthKitService: HealthKitQueryService
+	private let healthKitService: HealthDataProvider
 
 	// Production initializer (used by widget system)
 	init() {
 		self.healthKitService = HealthKitQueryService()
 	}
 
-	// Test initializer
-	init(healthKitService: HealthKitQueryService) {
+	// Test initializer (accepts any HealthDataProvider for dependency injection)
+	init(healthKitService: HealthDataProvider) {
 		self.healthKitService = healthKitService
 	}
 
@@ -517,7 +517,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			)
 
 			do {
-				let (total, hourlyData) = try await healthKit.fetchAverageData()
+				let (total, hourlyData) = try await healthKit.fetchAverageData(for: nil)
 				projectedTotal = total
 				averageData = hourlyData
 

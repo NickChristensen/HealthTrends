@@ -2,9 +2,10 @@ import Foundation
 import HealthKit
 @testable import HealthTrendsShared
 
-/// Mock implementation of HealthKitQueryService for testing
+/// Mock implementation of HealthDataProvider for testing
 /// Returns deterministic data without requiring actual HealthKit access
-class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
+/// Conforms to HealthDataProvider protocol using composition instead of inheritance
+final class MockHealthKitQueryService: HealthDataProvider {
 	private var mockSamples: [HKQuantitySample] = []
 	private var mockMoveGoal: Double = 0
 	private var mockAuthorized: Bool = true
@@ -30,13 +31,13 @@ class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
 		self.mockCurrentTime = time
 	}
 
-	// MARK: - Override HealthKitQueryService Methods
+	// MARK: - HealthDataProvider Implementation
 
-	override open func checkReadAuthorization() async -> Bool {
+	func checkReadAuthorization() async -> Bool {
 		return mockAuthorized
 	}
 
-	override open func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
+	func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
 		// If not authorized, throw error (simulates real HealthKit behavior)
 		guard mockAuthorized else {
 			throw HKError(.errorAuthorizationDenied)
@@ -83,7 +84,7 @@ class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
 		return (hourlyData, latestTimestamp)
 	}
 
-	override open func fetchMoveGoal() async throws -> Double {
+	func fetchMoveGoal() async throws -> Double {
 		// If not authorized, throw error (simulates real HealthKit behavior)
 		guard mockAuthorized else {
 			throw HKError(.errorAuthorizationDenied)
@@ -91,7 +92,7 @@ class MockHealthKitQueryService: HealthKitQueryService, @unchecked Sendable {
 		return mockMoveGoal
 	}
 
-	override open func fetchAverageData(for weekday: Int? = nil) async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+	func fetchAverageData(for weekday: Int? = nil) async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
 		// If not authorized, throw error (simulates real HealthKit behavior)
 		guard mockAuthorized else {
 			throw HKError(.errorAuthorizationDenied)
