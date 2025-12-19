@@ -34,15 +34,22 @@ HealthTrendsWidgetTests/
 
 ### Command Line (CI/Automation)
 
+**Recommended approach:**
+
 ```bash
-# Run widget integration tests
-xcodebuild test \
+# Run widget integration tests (fast, clean output)
+xcodebuild test -quiet \
   -scheme HealthTrendsWidgetTests \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-
-# Run shared package unit tests
-swift test --package-path HealthTrendsShared
 ```
+
+**Why `-quiet`?**
+- Suppresses verbose build output
+- Shows only test results (pass/fail per test)
+- Fast feedback: ~48 seconds for full suite
+- Clean, readable output perfect for CI/CD
+
+**Note:** `swift test` doesn't work for iOS-only packages that require iOS frameworks (HealthKit, WidgetKit). Use `xcodebuild test` for all tests in this project.
 
 ## Test Scenarios
 
