@@ -40,7 +40,7 @@ HealthTrendsWidgetTests/
 # Run widget integration tests (fast, clean output)
 xcodebuild test -quiet \
   -scheme HealthTrendsWidgetTests \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -destination 'platform=iOS Simulator,OS=latest'
 ```
 
 **Why `-quiet`?**
@@ -262,7 +262,7 @@ Tests cache structures:
   run: |
     xcodebuild test \
       -scheme HealthTrendsWidgetTests \
-      -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+      -destination 'platform=iOS Simulator,OS=latest' \
       -resultBundlePath TestResults
 
 - name: Run Shared Package Tests

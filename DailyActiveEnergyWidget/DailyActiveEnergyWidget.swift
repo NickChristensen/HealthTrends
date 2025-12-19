@@ -107,7 +107,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private static let logger = Logger(
 		subsystem: "com.finelycrafted.HealthTrends", category: "DailyActiveEnergyWidget")
 
-	private let healthKitService: HealthKitQueryService
+	private let healthKitService: HealthDataProvider
 	private let averageCacheManager: AverageDataCacheManager
 	private let todayCacheManager: TodayEnergyCacheManager
 
@@ -118,9 +118,9 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		self.todayCacheManager = TodayEnergyCacheManager.shared
 	}
 
-	// Test initializer with dependency injection
+	// Test initializer with dependency injection for all dependencies
 	init(
-		healthKitService: HealthKitQueryService,
+		healthKitService: HealthDataProvider,
 		averageCacheManager: AverageDataCacheManager = AverageDataCacheManager(),
 		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared
 	) {
@@ -525,7 +525,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			)
 
 			do {
-				let (total, hourlyData) = try await healthKit.fetchAverageData()
+				let (total, hourlyData) = try await healthKit.fetchAverageData(for: nil)
 				projectedTotal = total
 				averageData = hourlyData
 
