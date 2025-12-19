@@ -27,6 +27,9 @@ struct ContentView: View {
 					.resizable()
 					.aspectRatio(contentMode: .fit)
 					.frame(width: appIconSize, height: appIconSize)
+					.onTapGesture(count: 3) {
+						showingDevTools = true
+					}
 				VStack(spacing: 16) {
 					Text("Health Trends")
 						.font(.title)
@@ -88,23 +91,9 @@ struct ContentView: View {
 			}
 			.frame(maxWidth: 400)
 		}
-		.onShake {
-			showingDevTools = true
-		}
 		.sheet(isPresented: $showingDevTools) {
 			DevelopmentToolsSheet(healthKitManager: healthKitManager)
 		}
-		#if targetEnvironment(simulator)
-			.overlay(alignment: .bottomTrailing) {
-				Button(action: { showingDevTools = true }) {
-					Image(systemName: "wrench.and.screwdriver")
-					.frame(width: 44, height: 44)
-					.font(.title2)
-				}
-				.buttonStyle(.glass)
-				.padding(.trailing)
-			}
-		#endif
 		.task {
 			// Check authorization status when view appears
 			await healthKitManager.checkAuthorizationStatus()
