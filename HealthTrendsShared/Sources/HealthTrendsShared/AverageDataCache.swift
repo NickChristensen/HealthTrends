@@ -108,7 +108,7 @@ public struct WeekdayAverageCache: Codable, Sendable {
 // MARK: - Cache Manager
 
 /// Manager for reading/writing average data cache to App Group container
-public final class AverageDataCacheManager: Sendable {
+public class AverageDataCacheManager: Sendable {
 	private let appGroupIdentifier: String
 	private let fileName: String
 	private static let logger = Logger(

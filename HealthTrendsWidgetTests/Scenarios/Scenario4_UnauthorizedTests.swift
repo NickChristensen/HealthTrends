@@ -13,18 +13,22 @@ struct UnauthorizedTests {
 	@Test("Widget shows unauthorized state when HealthKit permission denied")
 	@MainActor
 	func testUnauthorizedState() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Mock HealthKit with no authorization
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime) = HealthKitFixtures.scenario4_unauthorized()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(false)  // NOT authorized
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 		let config = EnergyWidgetConfigurationIntent()
 
 		// WHEN: Timeline provider generates entry
@@ -33,7 +37,7 @@ struct UnauthorizedTests {
 		// Calculate expected move goal (mimics loadCachedMoveGoal() behavior)
 		let expectedMoveGoal: Double
 		do {
-			let cachedData = try TodayEnergyCacheManager.shared.readEnergyData()
+			let cachedData = try mockTodayCache.readEnergyData()
 			expectedMoveGoal = cachedData.moveGoal
 		} catch {
 			expectedMoveGoal = 800.0  // Default fallback
@@ -56,17 +60,21 @@ struct UnauthorizedTests {
 	@Test("Authorization check happens before data queries")
 	@MainActor
 	func testAuthorizationGating() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Unauthorized state with empty samples
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		mockQueryService.configureSamples([])
 		mockQueryService.configureMoveGoal(0.0)
 		mockQueryService.configureAuthorization(false)
 		mockQueryService.configureCurrentTime(Date())
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: Date(), configuration: EnergyWidgetConfigurationIntent())
@@ -82,18 +90,22 @@ struct UnauthorizedTests {
 	@Test("Entry date still reflects current time when unauthorized")
 	@MainActor
 	func testEntryDateWhenUnauthorized() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Unauthorized state
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let now = Date()
 		mockQueryService.configureSamples([])
 		mockQueryService.configureMoveGoal(0.0)
 		mockQueryService.configureAuthorization(false)
 		mockQueryService.configureCurrentTime(now)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: now, configuration: EnergyWidgetConfigurationIntent())

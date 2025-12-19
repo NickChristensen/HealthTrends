@@ -13,18 +13,22 @@ struct NormalOperationTests {
 	@Test("Saturday 3:43 PM with data current to 3:40 PM produces correct entry")
 	@MainActor
 	func testNormalOperation() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Mock HealthKit with Scenario 1 data
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 		let config = EnergyWidgetConfigurationIntent()
 
 		// WHEN: Timeline provider generates entry
@@ -61,17 +65,21 @@ struct NormalOperationTests {
 	@Test("Today line contains expected data structure")
 	@MainActor
 	func testTodayDataStructure() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 1 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
@@ -105,17 +113,21 @@ struct NormalOperationTests {
 	@Test("Average line projects to midnight")
 	@MainActor
 	func testAverageProjection() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 1 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())

@@ -13,18 +13,22 @@ struct DelayedSyncTests {
 	@Test("Data time reflects staleness when HealthKit data is 88 minutes old")
 	@MainActor
 	func testDelayedSync() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Mock HealthKit with Scenario 2 data (stale by 88 min)
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 		let config = EnergyWidgetConfigurationIntent()
 
 		// WHEN: Timeline provider generates entry
@@ -54,17 +58,21 @@ struct DelayedSyncTests {
 	@Test("Today line stops at data time, not current time")
 	@MainActor
 	func testTodayLineStopsAtDataTime() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 2 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
@@ -86,17 +94,21 @@ struct DelayedSyncTests {
 	@Test("Average line continues to project despite stale today data")
 	@MainActor
 	func testAverageProjectsIndependently() async throws {
-		// Clear all caches to ensure clean test state
-		TestUtilities.clearAllCaches()
-
-		// GIVEN: Scenario 2 setup
+		// GIVEN: Mock dependencies (no filesystem I/O)
 		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
 		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
 
-		let provider = EnergyWidgetProvider(healthKitService: mockQueryService)
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
 
 		// WHEN: Generate entry
 		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
