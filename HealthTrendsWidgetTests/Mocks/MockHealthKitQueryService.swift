@@ -10,6 +10,9 @@ final class MockHealthKitQueryService: HealthDataProvider {
 	private var mockMoveGoal: Double = 0
 	private var mockAuthorized: Bool = true
 	private var mockCurrentTime: Date = Date()
+	private var shouldThrowTodayError: Bool = false
+	private var shouldThrowAverageError: Bool = false
+	private var errorToThrow: Error?
 
 	/// Configure samples that will be returned by queries
 	func configureSamples(_ samples: [HKQuantitySample]) {
@@ -31,6 +34,25 @@ final class MockHealthKitQueryService: HealthDataProvider {
 		self.mockCurrentTime = time
 	}
 
+	/// Configure today query to throw an error
+	func configureTodayError(_ error: Error? = nil) {
+		self.shouldThrowTodayError = true
+		self.errorToThrow = error ?? HKError(.errorDatabaseInaccessible)
+	}
+
+	/// Configure average query to throw an error
+	func configureAverageError(_ error: Error? = nil) {
+		self.shouldThrowAverageError = true
+		self.errorToThrow = error ?? HKError(.errorDatabaseInaccessible)
+	}
+
+	/// Reset error configuration
+	func resetErrors() {
+		self.shouldThrowTodayError = false
+		self.shouldThrowAverageError = false
+		self.errorToThrow = nil
+	}
+
 	// MARK: - HealthDataProvider Implementation
 
 	func checkReadAuthorization() async -> Bool {
@@ -38,6 +60,11 @@ final class MockHealthKitQueryService: HealthDataProvider {
 	}
 
 	func fetchTodayHourlyTotals() async throws -> (data: [HourlyEnergyData], latestSampleTimestamp: Date?) {
+		// If configured to throw error, throw it
+		if shouldThrowTodayError {
+			throw errorToThrow ?? HKError(.errorDatabaseInaccessible)
+		}
+
 		// If not authorized, throw error (simulates real HealthKit behavior)
 		guard mockAuthorized else {
 			throw HKError(.errorAuthorizationDenied)
@@ -93,6 +120,11 @@ final class MockHealthKitQueryService: HealthDataProvider {
 	}
 
 	func fetchAverageData(for weekday: Int? = nil) async throws -> (total: Double, hourlyData: [HourlyEnergyData]) {
+		// If configured to throw error, throw it
+		if shouldThrowAverageError {
+			throw errorToThrow ?? HKError(.errorDatabaseInaccessible)
+		}
+
 		// If not authorized, throw error (simulates real HealthKit behavior)
 		guard mockAuthorized else {
 			throw HKError(.errorAuthorizationDenied)
