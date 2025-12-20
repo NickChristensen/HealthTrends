@@ -166,7 +166,7 @@ This project has comprehensive test coverage for the widget timeline and shared 
 Quick start:
 ```bash
 # Run all widget integration tests
-xcodebuild test -quiet -scheme HealthTrendsWidgetTests -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -enableCodeCoverage YES
+just test
 ```
 
 ## Project Structure

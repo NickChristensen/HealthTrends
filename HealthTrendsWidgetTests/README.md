@@ -38,10 +38,7 @@ HealthTrendsWidgetTests/
 
 ```bash
 # Run widget integration tests (fast, clean output)
-xcodebuild test -quiet \
-  -scheme HealthTrendsWidgetTests \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -enableCodeCoverage YES
+just test
 ```
 
 **Why `-quiet`?**
@@ -50,7 +47,7 @@ xcodebuild test -quiet \
 - Fast feedback: ~48 seconds for full suite
 - Clean, readable output perfect for CI/CD
 
-**Note:** `swift test` doesn't work for iOS-only packages that require iOS frameworks (HealthKit, WidgetKit). Use `xcodebuild test` for all tests in this project.
+**Note:** `swift test` doesn't work for iOS-only packages that require iOS frameworks (HealthKit, WidgetKit). Use `just test` for all tests in this project.
 
 ## Test Scenarios
 
@@ -261,11 +258,7 @@ Tests cache structures:
 ```yaml
 - name: Run Widget Integration Tests
   run: |
-    xcodebuild test \
-      -scheme HealthTrendsWidgetTests \
-      -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-      -enableCodeCoverage YES \
-      -resultBundlePath TestResults
+    just test-results TestResults
 
 - name: Run Shared Package Tests
   run: swift test --package-path HealthTrendsShared
