@@ -279,6 +279,25 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		)
 	}
 
+	/// Create an error entry for cache failures and unauthorized states
+	/// Used when HealthKit queries fail and no cache is available
+	private func createErrorEntry(
+		date: Date,
+		configuration: EnergyWidgetConfigurationIntent
+	) -> EnergyWidgetEntry {
+		EnergyWidgetEntry(
+			date: date,
+			todayTotal: 0,
+			averageAtCurrentHour: 0,
+			projectedTotal: 0,
+			moveGoal: loadCachedMoveGoal(),
+			todayHourlyData: [],
+			averageHourlyData: [],
+			configuration: configuration,
+			isAuthorized: false
+		)
+	}
+
 	/// Load fresh entry using hybrid approach: query HealthKit for today, use cached average
 	/// Note: Internal visibility for testing purposes
 	internal func loadFreshEntry(forDate date: Date = Date(), configuration: EnergyWidgetConfigurationIntent) async
@@ -451,66 +470,22 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			} catch TodayEnergyCacheError.fileNotFound {
 				// NO CACHE: Never authorized OR first run
 				Self.logger.warning("❌ No cache found - returning unauthorized state")
-
-				return EnergyWidgetEntry(
-					date: date,
-					todayTotal: 0,
-					averageAtCurrentHour: 0,
-					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
-					todayHourlyData: [],
-					averageHourlyData: [],
-					configuration: configuration,
-					isAuthorized: false  // No cache = unauthorized
-				)
+				return createErrorEntry(date: date, configuration: configuration)
 			} catch TodayEnergyCacheError.containerNotFound {
 				// APP GROUP ERROR: Configuration issue
 				Self.logger.error("❌ App group container not found - configuration error")
-
-				return EnergyWidgetEntry(
-					date: date,
-					todayTotal: 0,
-					averageAtCurrentHour: 0,
-					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
-					todayHourlyData: [],
-					averageHourlyData: [],
-					configuration: configuration,
-					isAuthorized: false
-				)
+				return createErrorEntry(date: date, configuration: configuration)
 			} catch let error as DecodingError {
 				// CACHE CORRUPTION: Failed to decode cached data
 				Self.logger.error("❌ Cache corruption: Failed to decode cached data")
 				Self.logger.error("   Error: \(String(describing: error))")
 				Self.logger.error("   Action: Cache will be regenerated on next app launch")
-
-				return EnergyWidgetEntry(
-					date: date,
-					todayTotal: 0,
-					averageAtCurrentHour: 0,
-					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
-					todayHourlyData: [],
-					averageHourlyData: [],
-					configuration: configuration,
-					isAuthorized: false
-				)
+				return createErrorEntry(date: date, configuration: configuration)
 			} catch {
 				// OTHER UNEXPECTED CACHE ERROR
 				Self.logger.error("❌ UNEXPECTED cache error: \(type(of: error))")
 				Self.logger.error("   Error: \(error.localizedDescription, privacy: .public)")
-
-				return EnergyWidgetEntry(
-					date: date,
-					todayTotal: 0,
-					averageAtCurrentHour: 0,
-					projectedTotal: 0,
-					moveGoal: loadCachedMoveGoal(),  // Last resort: UserDefaults cache
-					todayHourlyData: [],
-					averageHourlyData: [],
-					configuration: configuration,
-					isAuthorized: false
-				)
+				return createErrorEntry(date: date, configuration: configuration)
 			}
 		}
 
@@ -705,17 +680,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			)
 		} catch {
 			Self.logger.warning("Failed to load cached data in loadCachedEntry()")
-			return EnergyWidgetEntry(
-				date: date,
-				todayTotal: 0,
-				averageAtCurrentHour: 0,
-				projectedTotal: 0,
-				moveGoal: loadCachedMoveGoal(),
-				todayHourlyData: [],
-				averageHourlyData: [],
-				configuration: configuration,
-				isAuthorized: false  // No cache = unauthorized
-			)
+			return createErrorEntry(date: date, configuration: configuration)
 		}
 	}
 
