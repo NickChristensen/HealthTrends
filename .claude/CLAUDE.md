@@ -28,29 +28,67 @@ Use these skills for deep-dive expertise when working on specific iOS topics:
 - Agent-optimized: JSON output, ready work detection, discovered-from links
 - Prevents duplicate tracking systems and confusion
 
+### Tool Choice: Use MCP Tools (Primary Interface)
+
+**ALWAYS use MCP tools for beads operations:**
+
+- ✅ Structured data (no `--json` flag needed)
+- ✅ Context-optimized for AI agents
+- ✅ Better error handling
+- ✅ Pre-approved in your allowlist
+
+**Discover available tools:**
+1. Use `MCPSearch` with query `"select:mcp__plugin_beads_beads__discover_tools"`
+2. Load specific tools with `MCPSearch` before first use
+
+**Common MCP Tool Mapping:**
+
+| Operation | MCP Tool (USE THIS) | CLI Fallback (if MCP unavailable) |
+|-----------|---------------------|-----------------------------------|
+| Check ready work | `mcp__plugin_beads_beads__ready` | `bd ready --json` |
+| List issues | `mcp__plugin_beads_beads__list` | `bd list --json` |
+| Show issue | `mcp__plugin_beads_beads__show` | `bd show <id> --json` |
+| Create issue | `mcp__plugin_beads_beads__create` | `bd create --json` |
+| Update issue | `mcp__plugin_beads_beads__update` | `bd update <id> --json` |
+| Close issue | `mcp__plugin_beads_beads__close` | `bd close <id> --json` |
+| Manage dependencies | `mcp__plugin_beads_beads__dep` | `bd dep --json` |
+| Project stats | `mcp__plugin_beads_beads__stats` | `bd stats --json` |
+| Show blocked | `mcp__plugin_beads_beads__blocked` | `bd blocked --json` |
+
+**Note:** Only use CLI commands as a fallback if MCP tools are unavailable.
+
 ### Quick Start
 
 **Check for ready work:**
-```bash
-bd ready --json
+```
+MCPSearch → select:mcp__plugin_beads_beads__ready
+Then call: mcp__plugin_beads_beads__ready
 ```
 
 **Create new issues:**
-```bash
-bd create "Issue title" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" -p 1 --deps discovered-from:bd-123 --json
-bd create "Subtask" --parent <epic-id> --json  # Hierarchical subtask (gets ID like epic-id.1)
+```
+MCPSearch → select:mcp__plugin_beads_beads__create
+Then call with parameters:
+- title: "Issue title"
+- issue_type: "bug" | "feature" | "task" | "epic" | "chore"
+- priority: 0-4
+- (optional) dependencies, parent_id, etc.
 ```
 
 **Claim and update:**
-```bash
-bd update bd-42 --status in_progress --json
-bd update bd-42 --priority 1 --json
+```
+MCPSearch → select:mcp__plugin_beads_beads__update
+Then call with:
+- issue_id: "HT-42"
+- status: "in_progress"
 ```
 
 **Complete work:**
-```bash
-bd close bd-42 --reason "Completed" --json
+```
+MCPSearch → select:mcp__plugin_beads_beads__close
+Then call with:
+- issue_id: "HT-42"
+- reason: "Completed"
 ```
 
 ### Issue Types
@@ -71,12 +109,12 @@ bd close bd-42 --reason "Completed" --json
 
 ### Workflow for AI Agents
 
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
+1. **Check ready work**: `mcp__plugin_beads_beads__ready` shows unblocked issues
+2. **Claim your task**: `mcp__plugin_beads_beads__update` with `status: "in_progress"`
 3. **Work on it**: Implement, test, document
 4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
+   - `mcp__plugin_beads_beads__create` with `discovered_from: "<parent-id>"`
+5. **Complete**: `mcp__plugin_beads_beads__close` with `reason: "Done"`
 6. **Commit together**: Always commit the `.beads/issues.jsonl` file together with the code changes so issue state stays in sync with code state
 
 ### Auto-Sync
@@ -86,29 +124,30 @@ bd automatically syncs with git:
 - Imports from JSONL when newer (e.g., after `git pull`)
 - No manual export/import needed!
 
-### MCP Server (Recommended)
+### Getting Help
 
-If using Claude or MCP-compatible clients, use `mcp__beads__*` functions instead of CLI commands.
+**MCP Tool Discovery:**
+- `mcp__plugin_beads_beads__discover_tools` - List all available MCP tools
+- `mcp__plugin_beads_beads__get_tool_info` - Get details about a specific tool
 
-### CLI Help
-
-Run `bd <command> --help` to see all available flags for any command.
-For example: `bd create --help` shows `--parent`, `--deps`, `--assignee`, etc.
+**CLI Help (fallback only):**
+- `bd <command> --help` - See all available flags for a command
+- Example: `bd create --help` shows `--parent`, `--deps`, `--assignee`, etc.
 
 ### Important Rules
 
 - ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
+- ✅ **ALWAYS use MCP tools** (`mcp__plugin_beads_beads__*`) as primary interface
+- ✅ Only use CLI (`bd <cmd> --json`) if MCP unavailable
+- ✅ Link discovered work with `discovered_from` dependencies
+- ✅ Check `mcp__plugin_beads_beads__ready` before asking "what should I work on?"
 - ✅ Store AI planning docs in `history/` directory
-- ✅ Run `bd <cmd> --help` to discover available flags
 - ❌ Do NOT create markdown TODO lists
 - ❌ Do NOT use external issue trackers
 - ❌ Do NOT duplicate tracking systems
 - ❌ Do NOT clutter repo root with planning documents
 
-For more details, use the tool `beads:quickstart`, run `bd quickstart`, or read `.beads/README.md`
+For more details, use the skill `beads:quickstart` or read `.beads/README.md`
 
 ## Development Environment
 - **Default Simulator**: Always use iPhone 17 Pro for builds and testing
