@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "76A4EFA3-0D89-4214-BE25-4F420A26602E",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:HealthTrends.xcodeproj",
+        "identifier" : "011296102EF47C7600DC0450",
+        "name" : "HealthTrendsWidgetTests"
+      }
+    }
+  ],
+  "version" : 1
+}
