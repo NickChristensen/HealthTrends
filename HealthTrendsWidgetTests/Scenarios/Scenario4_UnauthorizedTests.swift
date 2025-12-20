@@ -114,4 +114,43 @@ struct UnauthorizedTests {
 		let calendar = Calendar.current
 		#expect(calendar.isDate(entry.date, inSameDayAs: now))
 	}
+
+	@Test("createErrorEntry() triggered when no cache available")
+	@MainActor
+	func testCreateErrorEntry() async throws {
+		// GIVEN: HealthKit query will fail AND no cache exists
+		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()  // No cache written
+
+		let now = Date()
+
+		// Configure HealthKit to throw error (device locked, etc.)
+		mockQueryService.configureTodayError(HKError(.errorDatabaseInaccessible))
+		mockQueryService.configureCurrentTime(now)
+
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
+
+		// WHEN: Generate entry (HealthKit fails, no cache)
+		let entry = await provider.loadFreshEntry(forDate: now, configuration: EnergyWidgetConfigurationIntent())
+
+		// THEN: Entry should be unauthorized/error state (calls createErrorEntry)
+		#expect(entry.isAuthorized == false)
+
+		// All metrics should be zero
+		#expect(entry.todayTotal == 0.0)
+		#expect(entry.averageAtCurrentHour == 0.0)
+		#expect(entry.projectedTotal == 0.0)
+
+		// Empty data arrays
+		#expect(entry.todayHourlyData.isEmpty)
+		#expect(entry.averageHourlyData.isEmpty)
+
+		// Move goal is still loaded from UserDefaults fallback
+		#expect(entry.moveGoal >= 0.0)
+	}
 }

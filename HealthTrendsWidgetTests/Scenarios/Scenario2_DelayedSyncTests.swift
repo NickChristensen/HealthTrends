@@ -131,4 +131,82 @@ struct DelayedSyncTests {
 			#expect(lastHour >= 22 || lastHour == 0)
 		}
 	}
+
+	@Test("Cache fallback when HealthKit query fails (device locked)")
+	@MainActor
+	func testCacheFallbackDeviceLocked() async throws {
+		// GIVEN: Set up mock services
+		let mockQueryService = MockHealthKitQueryService()
+		let mockAverageCache = MockAverageDataCacheManager()
+		let mockTodayCache = MockTodayEnergyCacheManager()
+
+		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
+
+		// STEP 1: Generate average cache data (before device locks)
+		// Use scenario 1's samples to build average pattern
+		let (scenario1Samples, _, _, _) = HealthKitFixtures.scenario1_normalOperation()
+		mockQueryService.configureSamples(scenario1Samples)
+		mockQueryService.configureCurrentTime(currentTime)
+		mockQueryService.configureAuthorization(true)
+		let (projectedTotal, averageHourlyData) = try await mockQueryService.fetchAverageData(for: 7)  // Saturday
+
+		// Save average to cache
+		let avgCache = AverageDataCache(
+			averageHourlyPattern: averageHourlyData,
+			projectedTotal: projectedTotal,
+			cachedAt: dataTime,
+			cacheVersion: 1
+		)
+		try mockAverageCache.save(avgCache, for: Weekday(date: currentTime)!)
+
+		// STEP 2: Generate today cache data (data from 2:15 PM)
+		let calendar = Calendar.current
+		let startOfDay = calendar.startOfDay(for: dataTime)
+		let cachedHourlyData = [
+			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 9, to: startOfDay)!, calories: 120.0),
+			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 10, to: startOfDay)!, calories: 210.0),
+			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 14, to: startOfDay)!, calories: 480.0)
+		]
+		try mockTodayCache.writeEnergyData(
+			todayTotal: 480.0,
+			moveGoal: moveGoal,
+			todayHourlyData: cachedHourlyData,
+			latestSampleTimestamp: dataTime
+		)
+
+		// STEP 3: Now device locks - HealthKit queries will fail
+		mockQueryService.configureTodayError(HKError(.errorDatabaseInaccessible))
+
+		let provider = EnergyWidgetProvider(
+			healthKitService: mockQueryService,
+			averageCacheManager: mockAverageCache,
+			todayCacheManager: mockTodayCache
+		)
+		let config = EnergyWidgetConfigurationIntent()
+
+		// WHEN: Timeline provider generates entry (HealthKit fails, uses cache)
+		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: config)
+
+		// THEN: Entry should use cached data
+		#expect(entry.isAuthorized == true)  // Cache exists = authorized
+
+		// Should show cached today total (480 cal at 2:15 PM)
+		#expect(entry.todayTotal == 480.0)
+
+		// Data time should reflect cached data timestamp (2:15 PM)
+		let dataHour = calendar.component(.hour, from: entry.date)
+		let dataMinute = calendar.component(.minute, from: entry.date)
+		#expect(dataHour == 14)
+		#expect(dataMinute == 15)
+
+		// Should still have average projection (from cache)
+		#expect(entry.projectedTotal > 0)
+
+		// Move goal from cache
+		#expect(entry.moveGoal == 900.0)
+
+		// Today data should match cached data
+		#expect(entry.todayHourlyData.count > 0)
+		#expect(entry.todayHourlyData.last?.calories == 480.0)
+	}
 }
