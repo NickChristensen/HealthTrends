@@ -319,7 +319,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				Self.logger.warning("   Error: \(error.localizedDescription, privacy: .public)")
 			}
 
-			// Check data freshness - warn if older than 30 minutes
+            // TODO: Remove this check
+            // Check data freshness - warn if older than 30 minutes
 			if let latestDataPoint = hourlyData.last {
 				let dataAge = date.timeIntervalSince(latestDataPoint.hour)
 

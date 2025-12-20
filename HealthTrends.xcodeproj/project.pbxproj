@@ -71,6 +71,7 @@
 		0149D0872ED37CEC001DCAE6 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		0174DBB32EF5A2010055B29E /* caching-strategy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = "caching-strategy.md"; path = "documentation/caching-strategy.md"; sourceTree = "<group>"; };
 		0174DBB42EF5A2010055B29E /* PRD.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PRD.md; path = documentation/PRD.md; sourceTree = "<group>"; };
+		0174DC4B2EF6EDF70055B29E /* HealthTrendsWidgetTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = HealthTrendsWidgetTests.xctestplan; sourceTree = "<group>"; };
 		0176C6252E91B08F003EFE68 /* HealthTrends.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HealthTrends.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01CFC1E02EC7AB8F003DC2E6 /* DailyActiveEnergyWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyActiveEnergyWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		01CFC1E22EC7AB8F003DC2E6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -206,6 +207,7 @@
 		0176C61C2E91B08F003EFE68 = {
 			isa = PBXGroup;
 			children = (
+				0174DC4B2EF6EDF70055B29E /* HealthTrendsWidgetTests.xctestplan */,
 				01CFC1F62EC7AC2D003DC2E6 /* DailyActiveEnergyWidgetExtension.entitlements */,
 				0176C6272E91B08F003EFE68 /* HealthTrends */,
 				01CFC1E62EC7AB8F003DC2E6 /* DailyActiveEnergyWidget */,
