@@ -309,35 +309,12 @@ final class HealthKitManager {
 	// Fetch average Active Energy data from past occurrences of the current weekday
 	// Returns "Total" and "Average" (see CLAUDE.md)
 	// Uses last 10 occurrences of today's weekday (e.g., if today is Saturday, uses last 10 Saturdays)
+	// Delegates to shared HealthKitQueryService for efficient statistics-based queries
 	private func fetchAverageData(for weekday: Int? = nil) async throws -> (
 		total: Double, hourlyData: [HourlyEnergyData]
 	) {
-		let calendar = Calendar.current
-		let now = Date()
-		let startOfToday = calendar.startOfDay(for: now)
-
-		// Get current weekday (or use provided weekday)
-		let targetWeekday = weekday ?? calendar.component(.weekday, from: startOfToday)
-
-		// Get data from 70 days ago to yesterday (ensures at least 10 occurrences of each weekday)
-		guard let seventyDaysAgo = calendar.date(byAdding: .day, value: -70, to: startOfToday),
-			let yesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday)
-		else {
-			return (0, [])
-		}
-
-		let activeEnergyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
-
-		// Fetch daily totals for "Total" metric (average of complete daily totals), filtered by weekday
-		let dailyTotals = try await fetchDailyTotals(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
-		let projectedTotal = dailyTotals.isEmpty ? 0 : dailyTotals.reduce(0, +) / Double(dailyTotals.count)
-
-		// Fetch cumulative average hourly pattern for "Average" metric, filtered by weekday
-		let averageHourlyData = try await fetchCumulativeAverageHourlyPattern(
-			from: seventyDaysAgo, to: yesterday, type: activeEnergyType, filterWeekday: targetWeekday)
-
-		return (projectedTotal, averageHourlyData)
+		let queryService = HealthKitQueryService(healthStore: healthStore, calendar: Calendar.current)
+		return try await queryService.fetchAverageData(for: weekday)
 	}
 
 	/// Populate weekday-specific average caches for all 7 weekdays
@@ -384,160 +361,6 @@ final class HealthKitManager {
 			print("   Failed weekdays: \(failedWeekdays.map { String($0) }.joined(separator: ", "))")
 			print("   Widget may show incomplete data on these weekdays")
 		}
-	}
-
-	// Fetch daily totals for a date range
-	// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
-	private func fetchDailyTotals(
-		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
-	) async throws -> [Double] {
-		let predicate = HKQuery.predicateForSamples(
-			withStart: startDate, end: endDate, options: .strictStartDate)
-		let calendar = Calendar.current
-
-		var dailyTotals: [Date: Double] = [:]
-
-		let samples = try await withCheckedThrowingContinuation {
-			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
-			) { _, samples, error in
-				if let error = error {
-					continuation.resume(throwing: error)
-					return
-				}
-				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-			}
-			healthStore.execute(query)
-		}
-
-		// Group by day
-		for sample in samples {
-			let dayStart = calendar.startOfDay(for: sample.startDate)
-
-			// Filter by weekday if specified
-			if let filterWeekday = filterWeekday {
-				let weekday = calendar.component(.weekday, from: dayStart)
-				guard weekday == filterWeekday else { continue }
-			}
-
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
-			dailyTotals[dayStart, default: 0] += calories
-		}
-
-		return Array(dailyTotals.values)
-	}
-
-	// Fetch cumulative average hourly pattern across multiple days
-	// For each hour H, calculates average of cumulative totals BY that hour (see CLAUDE.md for "Average")
-	// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
-	private func fetchCumulativeAverageHourlyPattern(
-		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
-	) async throws -> [HourlyEnergyData] {
-		let predicate = HKQuery.predicateForSamples(
-			withStart: startDate, end: endDate, options: .strictStartDate)
-		let calendar = Calendar.current
-
-		let samples = try await withCheckedThrowingContinuation {
-			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
-			) { _, samples, error in
-				if let error = error {
-					continuation.resume(throwing: error)
-					return
-				}
-				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
-			}
-			healthStore.execute(query)
-		}
-
-		// Group samples by day, then calculate cumulative totals for each day
-		var dailyCumulativeData: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeCalories]]
-
-		for sample in samples {
-			let dayStart = calendar.startOfDay(for: sample.startDate)
-
-			// Filter by weekday if specified
-			if let filterWeekday = filterWeekday {
-				let weekday = calendar.component(.weekday, from: dayStart)
-				guard weekday == filterWeekday else { continue }
-			}
-
-			let hour = calendar.component(.hour, from: sample.startDate)
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
-
-			if dailyCumulativeData[dayStart] == nil {
-				dailyCumulativeData[dayStart] = [:]
-			}
-			dailyCumulativeData[dayStart]![hour, default: 0] += calories
-		}
-
-		// Convert each day's hourly data to cumulative
-		var dailyCumulative: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeTotalByHour]]
-
-		for (dayStart, hourlyData) in dailyCumulativeData {
-			var runningTotal: Double = 0
-			var cumulativeByHour: [Int: Double] = [:]
-
-			// Sort hours and calculate cumulative
-			for hour in 0..<24 {
-				runningTotal += hourlyData[hour] ?? 0
-				cumulativeByHour[hour] = runningTotal
-			}
-
-			dailyCumulative[dayStart] = cumulativeByHour
-		}
-
-		// For each hour, average the cumulative totals across all days
-		var averageCumulativeByHour: [Int: Double] = [:]
-
-		for hour in 0..<24 {
-			var totalForHour: Double = 0
-			var count = 0
-
-			for (_, cumulativeByHour) in dailyCumulative {
-				if let cumulativeAtHour = cumulativeByHour[hour], cumulativeAtHour > 0 {
-					totalForHour += cumulativeAtHour
-					count += 1
-				}
-			}
-
-			averageCumulativeByHour[hour] = count > 0 ? totalForHour / Double(count) : 0
-		}
-
-		// Convert to HourlyEnergyData
-		let now = Date()
-		let startOfToday = calendar.startOfDay(for: now)
-		let currentHour = calendar.component(.hour, from: now)
-		let currentMinute = calendar.component(.minute, from: now)
-
-		var hourlyData: [HourlyEnergyData] = []
-
-		// Start with 0 at midnight to show beginning of day
-		hourlyData.append(HourlyEnergyData(hour: startOfToday, calories: 0))
-
-		// Timestamps should represent END of hour (hour 0 = 1 AM, hour 23 = midnight next day)
-		hourlyData.append(
-			contentsOf: averageCumulativeByHour.map { hour, avgCumulative in
-				let hourDate = calendar.date(byAdding: .hour, value: hour + 1, to: startOfToday)!
-				return HourlyEnergyData(hour: hourDate, calories: avgCumulative)
-			}.sorted { $0.hour < $1.hour })
-
-		// Add interpolated NOW point for real-time average
-		// Interpolate between current hour and next hour based on minutes into hour
-		let avgAtCurrentHour = averageCumulativeByHour[currentHour] ?? 0
-		let avgAtNextHour = averageCumulativeByHour[currentHour + 1] ?? avgAtCurrentHour
-		let interpolationFactor = Double(currentMinute) / 60.0
-		let avgAtNow = avgAtCurrentHour + (avgAtNextHour - avgAtCurrentHour) * interpolationFactor
-
-		if avgAtNow > 0 {
-			hourlyData.append(HourlyEnergyData(hour: now, calories: avgAtNow))
-		}
-
-		return hourlyData
 	}
 }
 
