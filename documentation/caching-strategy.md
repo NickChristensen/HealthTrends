@@ -30,7 +30,7 @@ Health Trends uses a two-tier caching system to optimize performance and enable 
 
 **Implementation:**
 - Definition: `HealthTrendsShared/Sources/HealthTrendsShared/TodayEnergyCacheManager.swift`
-- Query service: `HealthKitQueryService.fetchTodayHourlyTotals()` returns tuple with data and `latestSampleTimestamp` extracted from most recent sample's `endDate`
+- Query service: `HealthKitQueryService.fetchTodayHourlyTotals()` uses `HKStatisticsCollectionQuery` for efficient hourly aggregation, with separate lightweight sample query (limit: 1) to fetch `latestSampleTimestamp` from most recent sample's `endDate`
 - Writers (both write after successful HealthKit queries):
   - App: `HealthKitManager.populateTodayCache()` at `HealthTrends/Managers/HealthKitManager.swift:269-273`
   - Widget: `EnergyWidgetProvider.loadFreshEntry()` at `DailyActiveEnergyWidget/DailyActiveEnergyWidget.swift:241-246`
@@ -189,15 +189,18 @@ After successful authorization:
 
 **Today Data Query:**
 - Time range: Midnight → now (< 24 hours)
-- Typical samples: 50-1000 (depends on time of day)
-- Query time: < 100ms
+- Query method: `HKStatisticsCollectionQuery` with hourly intervals + lightweight sample query (limit: 1) for timestamp
+- Data transferred: ~24 hourly statistics + 1 sample for timestamp
+- Query time: 50-100ms (statistics query ~40-80ms, timestamp query ~10-20ms)
+- Aggregation: HealthKit performs hourly aggregation, app receives pre-aggregated results
 
 **Average Data Query:**
 - Time range: 70 days ago → yesterday
-- Weekday filter: Reduces samples by ~85% (1/7 of days)
-- Typical samples: 1000-7000
-- Query time: 200-500ms
-- Computation: Cumulative aggregation across days
+- Query method: `HKStatisticsCollectionQuery` with hourly intervals
+- Weekday filter: Applied in-memory during statistics enumeration (retains ~1/7 of intervals)
+- Data transferred: ~1680 hourly statistics (70 days × 24 hours)
+- Query time: 50-150ms
+- Computation: HealthKit aggregates per-hour, app calculates cumulative totals per day then averages across days
 
 **Cache Read/Write:**
 - File size: Today ~2-5 KB, Weekday Average ~35-70 KB (7 weekdays × ~5-10 KB each)
