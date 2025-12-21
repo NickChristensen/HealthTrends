@@ -248,21 +248,26 @@ public final class HealthKitQueryService: HealthDataProvider {
 
 	// MARK: - Private Helpers
 
-	/// Fetch hourly data for a specific time range
-	private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws
-		-> (data: [HourlyEnergyData], latestSampleTimestamp: Date?)
-	{
+	/// Fetch the timestamp of the most recent sample in the given time range
+	/// Used for cache staleness detection and NOW marker positioning
+	/// Returns nil if no samples exist in the range
+	private func fetchLatestSampleTimestamp(
+		from startDate: Date,
+		to endDate: Date,
+		type: HKQuantityType
+	) async throws -> Date? {
 		let predicate = HKQuery.predicateForSamples(
 			withStart: startDate, end: endDate, options: .strictStartDate)
-
-		var hourlyTotals: [Date: Double] = [:]
-		var latestSampleTimestamp: Date? = nil
 
 		let samples = try await withCheckedThrowingContinuation {
 			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
 			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
+				sampleType: type,
+				predicate: predicate,
+				limit: 1,  // Only fetch the single most recent sample
+				sortDescriptors: [
+					NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+				]
 			) { _, samples, error in
 				if let error = error {
 					continuation.resume(throwing: error)
@@ -273,118 +278,165 @@ public final class HealthKitQueryService: HealthDataProvider {
 			healthStore.execute(query)
 		}
 
-		// Group by hour and track latest sample timestamp
-		for sample in samples {
-			let hourStart =
-				calendar.dateInterval(of: .hour, for: sample.startDate)?.start ?? sample.startDate
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
-			hourlyTotals[hourStart, default: 0] += calories
+		return samples.first?.endDate
+	}
 
-			// Track latest sample (use endDate for accuracy)
-			if let currentLatest = latestSampleTimestamp {
-				latestSampleTimestamp = max(currentLatest, sample.endDate)
-			} else {
-				latestSampleTimestamp = sample.endDate
+	/// Fetch hourly data for a specific time range
+	/// Uses HKStatisticsCollectionQuery for efficient pre-aggregated hourly totals
+	private func fetchHourlyData(from startDate: Date, to endDate: Date, type: HKQuantityType) async throws
+		-> (data: [HourlyEnergyData], latestSampleTimestamp: Date?)
+	{
+		// PART 1: Statistics query for hourly totals (fast, optimized)
+		let anchorDate = calendar.startOfDay(for: startDate)
+		let interval = DateComponents(hour: 1)
+
+		let query = HKStatisticsCollectionQuery(
+			quantityType: type,
+			quantitySamplePredicate: HKQuery.predicateForSamples(
+				withStart: startDate, end: endDate, options: .strictStartDate
+			),
+			options: .cumulativeSum,
+			anchorDate: anchorDate,
+			intervalComponents: interval
+		)
+
+		let collection = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<HKStatisticsCollection?, Error>) in
+			query.initialResultsHandler = { query, collection, error in
+				if let error = error {
+					continuation.resume(throwing: error)
+					return
+				}
+				continuation.resume(returning: collection)
+			}
+			healthStore.execute(query)
+		}
+
+		// Extract hourly data from statistics
+		var hourlyData: [HourlyEnergyData] = []
+		collection?.enumerateStatistics(from: startDate, to: endDate) { statistics, stop in
+			if let sum = statistics.sumQuantity() {
+				let calories = sum.doubleValue(for: .kilocalorie())
+				hourlyData.append(HourlyEnergyData(hour: statistics.startDate, calories: calories))
 			}
 		}
 
-		// Convert to array and sort
-		let data = hourlyTotals.map { HourlyEnergyData(hour: $0.key, calories: $0.value) }
-			.sorted { $0.hour < $1.hour }
+		// PART 2: Separate lightweight sample query for timestamp ONLY
+		let latestSampleTimestamp = try await fetchLatestSampleTimestamp(
+			from: startDate, to: endDate, type: type
+		)
 
-		return (data, latestSampleTimestamp)
+		return (hourlyData, latestSampleTimestamp)
 	}
 
 	/// Fetch daily totals for a date range
 	/// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
+	/// Uses HKStatisticsCollectionQuery for efficient pre-aggregated daily totals
 	private func fetchDailyTotals(
 		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
 	) async throws -> [Double] {
-		let predicate = HKQuery.predicateForSamples(
-			withStart: startDate, end: endDate, options: .strictStartDate)
+		// Use statistics query with daily intervals
+		let anchorDate = calendar.startOfDay(for: startDate)
+		let interval = DateComponents(day: 1)
 
-		var dailyTotals: [Date: Double] = [:]
+		let query = HKStatisticsCollectionQuery(
+			quantityType: type,
+			quantitySamplePredicate: HKQuery.predicateForSamples(
+				withStart: startDate, end: endDate, options: .strictStartDate
+			),
+			options: .cumulativeSum,
+			anchorDate: anchorDate,
+			intervalComponents: interval
+		)
 
-		let samples = try await withCheckedThrowingContinuation {
-			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
-			) { _, samples, error in
+		let collection = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<HKStatisticsCollection?, Error>) in
+			query.initialResultsHandler = { query, collection, error in
 				if let error = error {
 					continuation.resume(throwing: error)
 					return
 				}
-				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+				continuation.resume(returning: collection)
 			}
 			healthStore.execute(query)
 		}
 
-		// Group by day
-		for sample in samples {
-			let dayStart = calendar.startOfDay(for: sample.startDate)
+		var dailyTotals: [Double] = []
 
-			// Filter by weekday if specified
+		collection?.enumerateStatistics(from: startDate, to: endDate) { statistics, stop in
+			// Apply weekday filter in-memory (HK predicates can't filter by weekday)
 			if let filterWeekday = filterWeekday {
-				let weekday = calendar.component(.weekday, from: dayStart)
-				guard weekday == filterWeekday else { continue }
+				let weekday = self.calendar.component(.weekday, from: statistics.startDate)
+				guard weekday == filterWeekday else { return }
 			}
 
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
-			dailyTotals[dayStart, default: 0] += calories
+			if let sum = statistics.sumQuantity() {
+				let calories = sum.doubleValue(for: .kilocalorie())
+				dailyTotals.append(calories)
+			}
 		}
 
-		return Array(dailyTotals.values)
+		return dailyTotals
 	}
 
 	/// Fetch cumulative average hourly pattern across multiple days
 	/// If filterWeekday is provided, only includes days matching that weekday (1 = Sunday, 7 = Saturday)
+	/// Uses HKStatisticsCollectionQuery for efficient pre-aggregated hourly totals
 	private func fetchCumulativeAverageHourlyPattern(
 		from startDate: Date, to endDate: Date, type: HKQuantityType, filterWeekday: Int? = nil
 	) async throws -> [HourlyEnergyData] {
-		let predicate = HKQuery.predicateForSamples(
-			withStart: startDate, end: endDate, options: .strictStartDate)
+		// STEP 1: Get hourly statistics for entire range
+		let anchorDate = calendar.startOfDay(for: startDate)
+		let interval = DateComponents(hour: 1)
 
-		let samples = try await withCheckedThrowingContinuation {
-			(continuation: CheckedContinuation<[HKQuantitySample], Error>) in
-			let query = HKSampleQuery(
-				sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-				sortDescriptors: nil
-			) { _, samples, error in
+		let query = HKStatisticsCollectionQuery(
+			quantityType: type,
+			quantitySamplePredicate: HKQuery.predicateForSamples(
+				withStart: startDate, end: endDate, options: .strictStartDate
+			),
+			options: .cumulativeSum,
+			anchorDate: anchorDate,
+			intervalComponents: interval
+		)
+
+		let collection = try await withCheckedThrowingContinuation {
+			(continuation: CheckedContinuation<HKStatisticsCollection?, Error>) in
+			query.initialResultsHandler = { query, collection, error in
 				if let error = error {
 					continuation.resume(throwing: error)
 					return
 				}
-				continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+				continuation.resume(returning: collection)
 			}
 			healthStore.execute(query)
 		}
 
-		// Group samples by day, then calculate cumulative totals for each day
-		var dailyCumulativeData: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeCalories]]
+		// STEP 2: Group hourly stats by day, apply weekday filter
+		var dailyHourlyData: [Date: [Int: Double]] = [:]  // [dayStart: [hour: calories]]
 
-		for sample in samples {
-			let dayStart = calendar.startOfDay(for: sample.startDate)
+		collection?.enumerateStatistics(from: startDate, to: endDate) { statistics, stop in
+			let dayStart = self.calendar.startOfDay(for: statistics.startDate)
 
 			// Filter by weekday if specified
 			if let filterWeekday = filterWeekday {
-				let weekday = calendar.component(.weekday, from: dayStart)
-				guard weekday == filterWeekday else { continue }
+				let weekday = self.calendar.component(.weekday, from: dayStart)
+				guard weekday == filterWeekday else { return }
 			}
 
-			let hour = calendar.component(.hour, from: sample.startDate)
-			let calories = sample.quantity.doubleValue(for: .kilocalorie())
+			guard let sum = statistics.sumQuantity() else { return }
+			let hour = self.calendar.component(.hour, from: statistics.startDate)
+			let calories = sum.doubleValue(for: .kilocalorie())
 
-			if dailyCumulativeData[dayStart] == nil {
-				dailyCumulativeData[dayStart] = [:]
+			if dailyHourlyData[dayStart] == nil {
+				dailyHourlyData[dayStart] = [:]
 			}
-			dailyCumulativeData[dayStart]![hour, default: 0] += calories
+			dailyHourlyData[dayStart]![hour] = calories
 		}
 
-		// Convert each day's hourly data to cumulative
+		// STEP 3: Calculate cumulative for each day (same as before)
 		var dailyCumulative: [Date: [Int: Double]] = [:]  // [dayStart: [hour: cumulativeTotalByHour]]
 
-		for (dayStart, hourlyData) in dailyCumulativeData {
+		for (dayStart, hourlyData) in dailyHourlyData {
 			var runningTotal: Double = 0
 			var cumulativeByHour: [Int: Double] = [:]
 
@@ -397,7 +449,7 @@ public final class HealthKitQueryService: HealthDataProvider {
 			dailyCumulative[dayStart] = cumulativeByHour
 		}
 
-		// For each hour, average the cumulative totals across all days
+		// STEP 4: Average across days (same as before)
 		var averageCumulativeByHour: [Int: Double] = [:]
 
 		for hour in 0..<24 {
@@ -414,7 +466,7 @@ public final class HealthKitQueryService: HealthDataProvider {
 			averageCumulativeByHour[hour] = count > 0 ? totalForHour / Double(count) : 0
 		}
 
-		// Convert to HourlyEnergyData
+		// STEP 5: Convert to HourlyEnergyData with interpolation (same as before)
 		let now = Date()
 		let startOfToday = calendar.startOfDay(for: now)
 		let currentHour = calendar.component(.hour, from: now)
