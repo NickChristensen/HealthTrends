@@ -21,6 +21,12 @@ struct EnergyTrendView: View {
 		widgetRenderingMode == .accented ? .clear : Color("WidgetBackground")
 	}
 
+	/// User's projected end-of-day total based on current pace
+	private var userProjectedTotal: Double {
+		// todayTotal + remaining average calories for the day
+		todayTotal + (projectedTotal - averageAtCurrentHour)
+	}
+
 	var body: some View {
 		if widgetFamily == .systemMedium {
 			// Medium widget: horizontal layout
@@ -36,28 +42,27 @@ struct EnergyTrendView: View {
 
 					HeaderStatistic(
 						label: "Average", statistic: averageAtCurrentHour,
-						color: Color("AverageStatisticColor")
+						color: Color("AverageColor")
 					)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 					.opacity(widgetRenderingMode.secondaryOpacity)
 
-					HeaderStatistic(
-						label: "Total", statistic: projectedTotal,
-						color: Color("TotalStatisticTextColor"),
-						circleColor: Color("TotalStatisticCircleColor")
-					)
+                    HeaderStatistic(
+                        label: "Projected",
+                        statistic: userProjectedTotal,
+                        color: Color("ProjectedColor")
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-					.opacity(widgetRenderingMode.tertiaryOpacity)
+                    .opacity(widgetRenderingMode.tertiaryOpacity)
 				}
                 .fixedSize(horizontal: true, vertical: false)
 
-				EnergyChartView(
-					todayHourlyData: todayHourlyData,
-					averageHourlyData: averageHourlyData,
-					moveGoal: moveGoal,
-					projectedTotal: projectedTotal,
-					dataTime: dataTime
-				)
+                EnergyChartView(
+                    todayHourlyData: todayHourlyData,
+                    averageHourlyData: averageHourlyData,
+                    moveGoal: moveGoal,
+                    dataTime: dataTime,
+                )
 				.frame(maxWidth: .infinity)
 			}
             .padding(spacing)
@@ -67,37 +72,36 @@ struct EnergyTrendView: View {
 			let spacing = 16.0
 			VStack(spacing: spacing) {
 				// Header
-				HStack {
-					HeaderStatistic(
-						label: "Today", statistic: todayTotal, color: Color("AccentColor")
-					)
-					.frame(maxWidth: .infinity, alignment: .leading)
-					.opacity(widgetRenderingMode.primaryOpacity)
-
-					HeaderStatistic(
-						label: "Average", statistic: averageAtCurrentHour,
-						color: Color("AverageStatisticColor")
-					)
-					.frame(maxWidth: .infinity, alignment: .center)
-					.opacity(widgetRenderingMode.secondaryOpacity)
-
-					HeaderStatistic(
-						label: "Total", statistic: projectedTotal,
-						color: Color("TotalStatisticTextColor"),
-						circleColor: Color("TotalStatisticCircleColor")
-					)
-					.frame(maxWidth: .infinity, alignment: .trailing)
-					.opacity(widgetRenderingMode.tertiaryOpacity)
-				}
+                HStack {
+                    HeaderStatistic(
+                        label: "Today", statistic: todayTotal, color: Color("AccentColor")
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .opacity(widgetRenderingMode.primaryOpacity)
+                    
+                    HeaderStatistic(
+                        label: "Average", statistic: averageAtCurrentHour,
+                        color: Color("AverageColor")
+                    )
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .opacity(widgetRenderingMode.secondaryOpacity)
+                    
+                    HeaderStatistic(
+                        label: "Projected",
+                        statistic: userProjectedTotal,
+                        color: Color("ProjectedColor")
+                    )
+                    .opacity(widgetRenderingMode.tertiaryOpacity)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
 				.fixedSize(horizontal: false, vertical: true)
 
 				EnergyChartView(
 					todayHourlyData: todayHourlyData,
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
-					projectedTotal: projectedTotal,
-					dataTime: dataTime
-				)
+					dataTime: dataTime,
+                )
 				.frame(maxHeight: .infinity)
 			}
 			.padding(spacing)
