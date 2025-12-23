@@ -45,7 +45,7 @@ struct StaleDataTests {
 		#expect(entry.averageHourlyData.count > 0)
 
 		// Projected total should be Saturday's average (1013 cal)
-		#expect(entry.projectedTotal == 1013.0)
+		#expect(entry.averageTotal == 1013.0)
 
 		// Move goal unchanged
 		#expect(entry.moveGoal == 900.0)
@@ -114,7 +114,7 @@ struct StaleDataTests {
 		#expect(averageData.count > 0)
 
 		// Projected total should be Saturday's average (1013 cal)
-		#expect(entry.projectedTotal == 1013.0)
+		#expect(entry.averageTotal == 1013.0)
 
 		// Last point should project to end of Saturday
 		if let lastPoint = averageData.last {
@@ -189,7 +189,7 @@ struct StaleDataTests {
 		#expect(entry.averageHourlyData.count > 0)
 
 		// Projected total should be Saturday's average
-		#expect(entry.projectedTotal > 0)
+		#expect(entry.averageTotal > 0)
 
 		// Move goal from cache
 		#expect(entry.moveGoal == 900.0)

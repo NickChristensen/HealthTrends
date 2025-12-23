@@ -44,7 +44,7 @@ struct NormalOperationTests {
 		#expect(entry.averageAtCurrentHour == 510.0)
 
 		// Validate Projected Total (exactly 1013 cal)
-		#expect(entry.projectedTotal == 1013.0)
+		#expect(entry.averageTotal == 1013.0)
 
 		// Validate Move Goal
 		#expect(entry.moveGoal == 900.0)

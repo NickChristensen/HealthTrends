@@ -46,7 +46,7 @@ struct TodayOnlyTests {
 
 		// Average data should be missing (query failed, no cache)
 		#expect(entry.averageAtCurrentHour == 0.0)
-		#expect(entry.projectedTotal == 0.0)
+		#expect(entry.averageTotal == 0.0)
 		#expect(entry.averageHourlyData.isEmpty)
 
 		// Move goal still available
@@ -82,7 +82,7 @@ struct TodayOnlyTests {
 
 		// But cannot answer "Am I on pace?" or "Where will I end up?"
 		#expect(entry.averageAtCurrentHour == 0.0)
-		#expect(entry.projectedTotal == 0.0)
+		#expect(entry.averageTotal == 0.0)
 
 		// Today data should be cumulative
 		let todayData = entry.todayHourlyData
