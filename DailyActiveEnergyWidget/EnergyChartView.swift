@@ -254,7 +254,7 @@ struct EnergyChartView: View {
 			)
 			.foregroundStyle(Color("AverageColor"))
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-			.opacity(widgetRenderingMode.secondaryOpacity)
+			.opacity(widgetRenderingMode.tertiaryOpacity)
 		}
 	}
 
@@ -282,7 +282,7 @@ struct EnergyChartView: View {
             )
             .foregroundStyle(Color("ProjectedColor"))
             .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-            .opacity(widgetRenderingMode.tertiaryOpacity)
+            .opacity(widgetRenderingMode.secondaryOpacity)
         }
 	}
 
@@ -294,7 +294,7 @@ struct EnergyChartView: View {
 				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(Color("AverageColor")).symbolSize(100).opacity(
-					widgetRenderingMode.secondaryOpacity)
+					widgetRenderingMode.tertiaryOpacity)
 		}
 	}
 

@@ -45,7 +45,7 @@ struct EnergyTrendView: View {
 						color: Color("AverageColor")
 					)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-					.opacity(widgetRenderingMode.secondaryOpacity)
+					.opacity(widgetRenderingMode.tertiaryOpacity)
 
                     HeaderStatistic(
                         label: "Projected",
@@ -53,7 +53,7 @@ struct EnergyTrendView: View {
                         color: Color("ProjectedColor")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .opacity(widgetRenderingMode.tertiaryOpacity)
+                    .opacity(widgetRenderingMode.secondaryOpacity)
 				}
                 .fixedSize(horizontal: true, vertical: false)
 
@@ -84,14 +84,14 @@ struct EnergyTrendView: View {
                         color: Color("AverageColor")
                     )
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .opacity(widgetRenderingMode.secondaryOpacity)
+                    .opacity(widgetRenderingMode.tertiaryOpacity)
                     
                     HeaderStatistic(
                         label: "Projected",
                         statistic: projectedTotal,
                         color: Color("ProjectedColor")
                     )
-                    .opacity(widgetRenderingMode.tertiaryOpacity)
+                    .opacity(widgetRenderingMode.secondaryOpacity)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 				.fixedSize(horizontal: false, vertical: true)
