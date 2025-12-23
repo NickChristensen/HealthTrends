@@ -26,6 +26,39 @@ struct EnergyTrendView: View {
 		// todayTotal + remaining average calories for the day
 		todayTotal + (averageTotal - averageAtCurrentHour)
 	}
+    
+    private var todayStatistic: some View {
+        HeaderStatistic { circle in
+            circle.fill(Color("AccentColor"))
+        } label: {
+            Text("Today").foregroundStyle(Color("AccentColor"))
+        } statistic: { format in
+            format(todayTotal)
+        }
+        .opacity(widgetRenderingMode.primaryOpacity)
+    }
+    
+    private var averageStatistic: some View {
+        HeaderStatistic { circle in
+            circle.fill(Color("AverageColor"))
+        } label: {
+            Text("Average").foregroundStyle(Color("AverageColor"))
+        } statistic: { format in
+            format(averageAtCurrentHour)
+        }
+        .opacity(widgetRenderingMode.tertiaryOpacity)
+    }
+    
+    private var projectedStatistic: some View {
+        HeaderStatistic { circle in
+            circle.strokeBorder(Color("AccentColor"), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
+        } label: {
+            Text("Projected").foregroundStyle(Color("AccentColor"))
+        } statistic: { format in
+            format(projectedTotal)
+        }
+        .opacity(widgetRenderingMode.secondaryOpacity)
+    }
 
 	var body: some View {
 		if widgetFamily == .systemMedium {
@@ -34,26 +67,12 @@ struct EnergyTrendView: View {
 			HStack(spacing: spacing) {
 				// Header
                 VStack {
-					HeaderStatistic(
-						label: "Today", statistic: todayTotal, color: Color("AccentColor")
-					)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-					.opacity(widgetRenderingMode.primaryOpacity)
-
-					HeaderStatistic(
-						label: "Average", statistic: averageAtCurrentHour,
-						color: Color("AverageColor")
-					)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-					.opacity(widgetRenderingMode.tertiaryOpacity)
-
-                    HeaderStatistic(
-                        label: "Projected",
-                        statistic: projectedTotal,
-                        color: Color("ProjectedColor")
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .opacity(widgetRenderingMode.secondaryOpacity)
+					todayStatistic
+					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    averageStatistic
+					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    projectedStatistic
+					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 				}
                 .fixedSize(horizontal: true, vertical: false)
 
@@ -73,25 +92,11 @@ struct EnergyTrendView: View {
 			VStack(spacing: spacing) {
 				// Header
                 HStack {
-                    HeaderStatistic(
-                        label: "Today", statistic: todayTotal, color: Color("AccentColor")
-                    )
+                    todayStatistic
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .opacity(widgetRenderingMode.primaryOpacity)
-                    
-                    HeaderStatistic(
-                        label: "Average", statistic: averageAtCurrentHour,
-                        color: Color("AverageColor")
-                    )
+                    averageStatistic
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .opacity(widgetRenderingMode.tertiaryOpacity)
-                    
-                    HeaderStatistic(
-                        label: "Projected",
-                        statistic: projectedTotal,
-                        color: Color("ProjectedColor")
-                    )
-                    .opacity(widgetRenderingMode.secondaryOpacity)
+                    projectedStatistic
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 				.fixedSize(horizontal: false, vertical: true)

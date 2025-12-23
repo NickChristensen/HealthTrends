@@ -165,11 +165,11 @@ struct EnergyChartView: View {
 
 			if showTickLine {
 				// Visible labeled hours: tick line
-				AxisTick(centered: true, length: 6, stroke: StrokeStyle(lineWidth: 2, lineCap: .round))
+				AxisTick(centered: true, length: 6, stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round))
 					.offset(CGSize(width: 0, height: 8))
 			} else {
 				// Unlabeled hours or hidden labels: dot
-				AxisTick(centered: true, length: 0, stroke: StrokeStyle(lineWidth: 2, lineCap: .round))
+				AxisTick(centered: true, length: 0, stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round))
 					.offset(CGSize(width: 0, height: 11))
 			}
 		}
@@ -254,7 +254,7 @@ struct EnergyChartView: View {
 			)
 			.foregroundStyle(Color("AverageColor"))
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-			.opacity(widgetRenderingMode.tertiaryOpacity)
+			.opacity(widgetRenderingMode.secondaryOpacity)
 		}
 	}
 
@@ -280,9 +280,9 @@ struct EnergyChartView: View {
                 y: .value("Calories", data.calories),
                 series: .value("Series", "Projected")
             )
-            .foregroundStyle(Color("ProjectedColor"))
-            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-            .opacity(widgetRenderingMode.secondaryOpacity)
+            .foregroundStyle(Color("AccentColor"))
+            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round, dash: [lineWidth, lineWidth * 1.5]))
+            .opacity(widgetRenderingMode.primaryOpacity)
         }
 	}
 
@@ -294,7 +294,7 @@ struct EnergyChartView: View {
 				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(Color("AverageColor")).symbolSize(100).opacity(
-					widgetRenderingMode.tertiaryOpacity)
+					widgetRenderingMode.secondaryOpacity)
 		}
 	}
 
@@ -316,7 +316,7 @@ struct EnergyChartView: View {
 		if moveGoal > 0 {
 			RuleMark(y: .value("Goal", moveGoal))
 				.foregroundStyle(Color("GoalLineColor").opacity(0.5))
-				.lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+				.lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
 				.annotation(
 					position: .bottom,
 					alignment: .leading,
@@ -338,7 +338,7 @@ struct EnergyChartView: View {
 	private var dataTimeLine: some ChartContent {
 		RuleMark(x: .value("Now", dataTime))
 			.foregroundStyle(Color("NowLineColor"))
-			.lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+			.lineStyle(StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.tertiaryOpacity)
 	}
 
@@ -366,7 +366,6 @@ struct EnergyChartView: View {
 				)
 				.chartYScale(domain: 0...maxValue)
 				.chartXAxis {
-					// Calculate constants once (not 24 times per render!)
 					let startOfDay = calendar.startOfDay(for: Date())
 					let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 					let collisions = calculateLabelCollisions(
@@ -385,7 +384,7 @@ struct EnergyChartView: View {
 					AxisMarks(values: [dataTime]) { _ in
 						AxisTick(
 							centered: true, length: 6,
-							stroke: StrokeStyle(lineWidth: 2, lineCap: .round)
+							stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round)
 						)
 						.offset(CGSize(width: 0, height: 8))
 					}
