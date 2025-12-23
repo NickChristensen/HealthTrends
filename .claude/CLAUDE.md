@@ -444,6 +444,6 @@ The app displays three key metrics (full definitions in PRD):
 
 1. **"Today"** (`todayTotal: Double`) - Cumulative calories burned from midnight to now
 2. **"Average"** (`averageHourlyData: [HourlyEnergyData]`) - Typical calories burned by this hour, calculated from last ~10 occurrences of current weekday
-3. **"Total"** (`projectedTotal: Double`) - Average of complete daily totals from matching weekdays (where you'll likely end up)
+3. **"Projected"** (`projectedTotal: Double`) - Today's progress plus remaining average for the day (where you'll likely end up based on current pace)
 
-**Why it matters:** These metrics answer "How much have I burned?", "Am I on pace?", and "Where will I end up?" The distinction between "Average" (cumulative by hour) and "Total" (daily average) is critical for accurate graphing and projections.
+**Why it matters:** These metrics answer "How much have I burned?", "Am I on pace?", and "Where will I end up?" The "Projected" value adapts to your current pace rather than showing a static historical average.

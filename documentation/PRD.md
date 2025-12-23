@@ -62,18 +62,20 @@ Then **"Average" at 1 PM = 389 cal** (average across those 10 Saturdays)
 
 ---
 
-### 3. "Total" (Projected End-of-Day)
-**Definition:** The average of complete daily totals from the last ~10 occurrences of the current weekday (excluding today).
+### 3. "Projected" (Pace-Based End-of-Day)
+**Definition:** Today's current progress plus the remaining average calories for the rest of the day, based on historical weekday patterns.
 
-**Example:** On a Saturday:
-- Saturday 1: burned 1,050 cal (full day)
-- Saturday 2: burned 1,020 cal (full day)
-- ...
-- Saturday 10: burned 1,032 cal (full day)
+**Formula:** `Projected = Today + (Average Total - Average at Current Hour)`
 
-Then **"Total" = 1,034 cal** (average daily total for Saturdays)
+**Example:** At 2:00 PM on a Saturday:
+- Today so far: 520 cal
+- Average at 2 PM (from past Saturdays): 480 cal
+- Average total (full day from past Saturdays): 1,034 cal
+- Remaining average: 1,034 - 480 = 554 cal
 
-**User Question Answered:** "If I follow my average pattern, where will I end up?"
+Then **"Projected" = 520 + 554 = 1,074 cal**
+
+**User Question Answered:** "Based on my current pace, where will I end up?"
 
 ---
 
@@ -94,7 +96,7 @@ Then **"Total" = 1,034 cal** (average daily total for Saturdays)
 Each metric serves a distinct purpose:
 - **"Today"** = Current progress (actual data up to Data Time)
 - **"Average"** = Historical context (am I on pace?)
-- **"Total"** = Projected outcome (where am I headed?)
+- **"Projected"** = Projected outcome (where am I headed?)
 - **"Data Time"** = Temporal anchor (when is this data from?)
 
 Together, they enable users to make informed decisions about their activity level throughout the day.
