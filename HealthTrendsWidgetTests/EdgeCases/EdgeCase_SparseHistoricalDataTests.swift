@@ -49,9 +49,9 @@ struct SparseHistoricalDataTests {
 		#expect(entry.averageAtCurrentHour > 0)
 
 		// Validate Projected Total is a valid number
-		#expect(!entry.projectedTotal.isNaN)
-		#expect(!entry.projectedTotal.isInfinite)
-		#expect(entry.projectedTotal > 0)
+		#expect(!entry.averageTotal.isNaN)
+		#expect(!entry.averageTotal.isInfinite)
+		#expect(entry.averageTotal > 0)
 
 		// Validate data arrays are populated
 		#expect(entry.todayHourlyData.count >= 3)
@@ -88,7 +88,7 @@ struct SparseHistoricalDataTests {
 		#expect(entry.averageAtCurrentHour == 510.0)
 
 		// Projected total should be ~1013 cal (same deterministic pattern)
-		#expect(entry.projectedTotal == 1013.0)
+		#expect(entry.averageTotal == 1013.0)
 
 		// Move Goal
 		#expect(entry.moveGoal == 900.0)

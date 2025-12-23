@@ -18,7 +18,7 @@ struct EnergyWidgetEntry: TimelineEntry {
 	let date: Date
 	let todayTotal: Double
 	let averageAtCurrentHour: Double
-	let projectedTotal: Double
+	let averageTotal: Double
 	let moveGoal: Double
 	let todayHourlyData: [HourlyEnergyData]
 	let averageHourlyData: [HourlyEnergyData]
@@ -31,7 +31,7 @@ struct EnergyWidgetEntry: TimelineEntry {
 			date: Date(),
 			todayTotal: 467,
 			averageAtCurrentHour: 389,
-			projectedTotal: 1034,
+			averageTotal: 1034,
 			moveGoal: 800,
 			todayHourlyData: generateSampleTodayData(),
 			averageHourlyData: generateSampleAverageData(),
@@ -270,7 +270,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			date: date,
 			todayTotal: 0,  // Known: Today resets to 0 at midnight
 			averageAtCurrentHour: 0,  // At midnight, average is also 0
-			projectedTotal: projectedTotal,
+			averageTotal: projectedTotal,
 			moveGoal: moveGoal,  // Use previous goal; will be refreshed after midnight reload
 			todayHourlyData: [HourlyEnergyData(hour: startOfDay, calories: 0)],  // Single point at midnight with 0
 			averageHourlyData: averageHourlyData,  // New weekday's pattern with normalized timestamps
@@ -289,7 +289,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			date: date,
 			todayTotal: 0,
 			averageAtCurrentHour: 0,
-			projectedTotal: 0,
+			averageTotal: 0,
 			moveGoal: loadCachedMoveGoal(),
 			todayHourlyData: [],
 			averageHourlyData: [],
@@ -435,7 +435,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						date: effectiveDate,
 						todayTotal: todayCache.todayTotal,
 						averageAtCurrentHour: averageAtCurrentHour,
-						projectedTotal: projectedTotal,
+						averageTotal: projectedTotal,
 						moveGoal: todayCache.moveGoal,
 						todayHourlyData: todayCache.todayHourlyData.map {
 							$0.toHourlyEnergyData()
@@ -459,7 +459,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						date: effectiveDate,
 						todayTotal: 0,
 						averageAtCurrentHour: averageAtCurrentHour,
-						projectedTotal: projectedTotal,
+						averageTotal: projectedTotal,
 						moveGoal: todayCache.moveGoal,  // Use cached goal when query fails
 						todayHourlyData: [],  // Empty today data
 						averageHourlyData: averageHourlyData,
@@ -561,7 +561,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 						date: effectiveDate,
 						todayTotal: todayTotal,
 						averageAtCurrentHour: 0,
-						projectedTotal: 0,
+						averageTotal: 0,
 						moveGoal: loadCachedMoveGoal(),
 						todayHourlyData: todayData,
 						averageHourlyData: [],
@@ -632,7 +632,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			date: effectiveDate,
 			todayTotal: todayTotal,
 			averageAtCurrentHour: averageAtCurrentHour,
-			projectedTotal: projectedTotal,
+			averageTotal: projectedTotal,
 			moveGoal: moveGoal,  // Use fresh goal from HealthKit query
 			todayHourlyData: todayData,
 			averageHourlyData: averageData,
@@ -671,7 +671,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				date: effectiveDate,
 				todayTotal: todayCache.todayTotal,
 				averageAtCurrentHour: averageAtCurrentHour,
-				projectedTotal: projectedTotal,
+				averageTotal: projectedTotal,
 				moveGoal: todayCache.moveGoal,
 				todayHourlyData: todayCache.todayHourlyData.map { $0.toHourlyEnergyData() },
 				averageHourlyData: averageHourlyData,
@@ -753,7 +753,7 @@ struct DailyActiveEnergyWidgetEntryView: View {
 			todayHourlyData: entry.todayHourlyData,
 			averageHourlyData: entry.averageHourlyData,
 			moveGoal: entry.moveGoal,
-			projectedTotal: entry.projectedTotal,
+			averageTotal: entry.averageTotal,
 			dataTime: entry.date
 		)
 	}

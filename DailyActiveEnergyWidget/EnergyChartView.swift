@@ -130,7 +130,6 @@ struct EnergyChartView: View {
 	let todayHourlyData: [HourlyEnergyData]
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
-	let projectedTotal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
@@ -180,9 +179,9 @@ struct EnergyChartView: View {
 	private func chartMaxValue(chartHeight: CGFloat) -> Double {
 		return max(
 			todayHourlyData.last?.calories ?? 0,
-			averageHourlyData.last?.calories ?? 0,
-			moveGoal,
-			projectedTotal  //TODO: isn't this the same as the above `averageHourlyData.last?.calories ?? 0`? is there a scenario where they're different?
+			interpolatedAverageAtDataTime?.calories ?? 0,
+			projectedData.last?.calories ?? 0,
+			moveGoal
 		)
 	}
 
@@ -232,8 +231,20 @@ struct EnergyChartView: View {
 		return data
 	}
 
+	/// Projected data for rest of day (offset average to start from Today's current value)
+	private var projectedData: [HourlyEnergyData] {
+		// offset = Today at data time - Average at data time
+		let todayAtDataTime = todayHourlyData.last?.calories ?? 0
+		let averageAtDataTime = interpolatedAverageAtDataTime?.calories ?? 0
+		let offset = todayAtDataTime - averageAtDataTime
+
+		return averageDataAfterDataTime.map { data in
+			HourlyEnergyData(hour: data.hour, calories: offset + data.calories)
+		}
+	}
+
 	@ChartContentBuilder
-	private var averageLines: some ChartContent {
+	private var averageLine: some ChartContent {
 		// BEFORE Data Time: darker gray line (past data → Data Time)
 		ForEach(averageDataBeforeDataTime) { data in
 			LineMark(
@@ -241,19 +252,7 @@ struct EnergyChartView: View {
 				y: .value("Calories", data.calories),
 				series: .value("Series", "AverageUpToNow")
 			)
-			.foregroundStyle(Color("AverageLineBeforeNowColor"))
-			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-			.opacity(widgetRenderingMode.secondaryOpacity)
-		}
-
-		// AFTER Data Time: lighter gray line (Data Time → future data)
-		ForEach(averageDataAfterDataTime) { data in
-			LineMark(
-				x: .value("Hour", data.hour),
-				y: .value("Calories", data.calories),
-				series: .value("Series", "AverageRestOfDay")
-			)
-			.foregroundStyle(Color("AverageLineAfterNowColor"))
+			.foregroundStyle(Color("AverageColor"))
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.tertiaryOpacity)
 		}
@@ -274,14 +273,28 @@ struct EnergyChartView: View {
 	}
 
 	@ChartContentBuilder
+	private var projectedLine: some ChartContent {
+        ForEach(projectedData) { data in
+            LineMark(
+                x: .value("Hour", data.hour),
+                y: .value("Calories", data.calories),
+                series: .value("Series", "Projected")
+            )
+            .foregroundStyle(Color("ProjectedColor"))
+            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+            .opacity(widgetRenderingMode.secondaryOpacity)
+        }
+	}
+
+	@ChartContentBuilder
 	private var averagePoint: some ChartContent {
 		// Show average point at Data Time (interpolated value)
 		if let interpolated = interpolatedAverageAtDataTime {
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
-				.foregroundStyle(Color("AverageLineBeforeNowColor")).symbolSize(100).opacity(
-					widgetRenderingMode.secondaryOpacity)
+				.foregroundStyle(Color("AverageColor")).symbolSize(100).opacity(
+					widgetRenderingMode.tertiaryOpacity)
 		}
 	}
 
@@ -340,8 +353,9 @@ struct EnergyChartView: View {
 				Chart {
 					dataTimeLine
 					goalLine
-					averageLines
+					averageLine
 					todayLine
+					projectedLine
 					averagePoint
 					todayPoint
 				}

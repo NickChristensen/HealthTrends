@@ -49,7 +49,7 @@ struct UnauthorizedTests {
 		// No data should be available
 		#expect(entry.todayTotal == 0.0)
 		#expect(entry.averageAtCurrentHour == 0.0)
-		#expect(entry.projectedTotal == 0.0)
+		#expect(entry.averageTotal == 0.0)
 		#expect(entry.moveGoal == expectedMoveGoal)  // Uses fallback logic
 
 		// No hourly data arrays
@@ -84,7 +84,7 @@ struct UnauthorizedTests {
 
 		// All metrics should be zero
 		#expect(entry.todayTotal == 0.0)
-		#expect(entry.projectedTotal == 0.0)
+		#expect(entry.averageTotal == 0.0)
 	}
 
 	@Test("Entry date still reflects current time when unauthorized")
@@ -144,7 +144,7 @@ struct UnauthorizedTests {
 		// All metrics should be zero
 		#expect(entry.todayTotal == 0.0)
 		#expect(entry.averageAtCurrentHour == 0.0)
-		#expect(entry.projectedTotal == 0.0)
+		#expect(entry.averageTotal == 0.0)
 
 		// Empty data arrays
 		#expect(entry.todayHourlyData.isEmpty)

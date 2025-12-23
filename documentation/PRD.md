@@ -62,18 +62,20 @@ Then **"Average" at 1 PM = 389 cal** (average across those 10 Saturdays)
 
 ---
 
-### 3. "Total" (Projected End-of-Day)
-**Definition:** The average of complete daily totals from the last ~10 occurrences of the current weekday (excluding today).
+### 3. "Projected"
+**Definition:** Today's current progress plus the remaining average calories for the rest of the day, based on historical weekday patterns.
 
-**Example:** On a Saturday:
-- Saturday 1: burned 1,050 cal (full day)
-- Saturday 2: burned 1,020 cal (full day)
-- ...
-- Saturday 10: burned 1,032 cal (full day)
+**Formula:** `Projected = Today + (Average Total - Average at Current Hour)`
 
-Then **"Total" = 1,034 cal** (average daily total for Saturdays)
+**Example:** At 2:00 PM on a Saturday:
+- Today so far: 520 cal
+- Average at 2 PM (from past Saturdays): 480 cal
+- Average total (full day from past Saturdays): 1,034 cal
+- Remaining average: 1,034 - 480 = 554 cal
 
-**User Question Answered:** "If I follow my average pattern, where will I end up?"
+Then **"Projected" = 520 + 554 = 1,074 cal**
+
+**User Question Answered:** "Based on my current pace, where will I end up?"
 
 ---
 
@@ -81,7 +83,7 @@ Then **"Total" = 1,034 cal** (average daily total for Saturdays)
 **Definition:** The timestamp of the most recent HealthKit data sample. Typically matches the current time, but may lag during sync delays (e.g., waiting for Apple Watch to sync to iPhone, or iPhone to sync in background).
 
 **Technical Purpose:**
-- Marks the boundary on the chart between actual data (before Data Time) and projected averages (after Data Time)
+- Marks the boundary on the chart between actual/historical data (before Data Time) and pace-based projection (after Data Time)
 - Used for interpolating average values at the precise moment of latest data
 - Determines data staleness (is data from today or yesterday?)
 
@@ -94,7 +96,7 @@ Then **"Total" = 1,034 cal** (average daily total for Saturdays)
 Each metric serves a distinct purpose:
 - **"Today"** = Current progress (actual data up to Data Time)
 - **"Average"** = Historical context (am I on pace?)
-- **"Total"** = Projected outcome (where am I headed?)
+- **"Projected"** = Projected outcome (where am I headed?)
 - **"Data Time"** = Temporal anchor (when is this data from?)
 
 Together, they enable users to make informed decisions about their activity level throughout the day.
@@ -115,10 +117,11 @@ Together, they enable users to make informed decisions about their activity leve
 - **System Extra Large:** Full-screen vertical layout
 
 **Displayed Information:**
-- Three header statistics (Today, Average, Total) with color-coded indicators
+- Three header statistics (Today, Average, Projected) with color-coded indicators
 - Multi-line chart showing:
-  - Today's cumulative calories
-  - Average (split into two segments: before Data Time and after Data Time with different opacity)
+  - Today's cumulative calories (up to Data Time)
+  - Average cumulative calories (up to Data Time)
+  - Projected line (continues from Today's value through end of day, showing pace-based projection)
   - Move goal reference (dashed horizontal line)
   - Vertical marker at Data Time with timestamp
   - Dots at Data Time position for today/average values
@@ -288,11 +291,11 @@ Widget should show useful information even when HealthKit is unavailable.
 **Widget Display:**
 - **Today:** 550 cal (actual progress through 3:40 PM)
 - **Average:** 510 cal (average of the 10 values above, interpolated to 3:40 PM)
-- **Total:** 1,013 cal (average of full-day totals)
+- **Projected:** 1,053 cal (550 + (1,013 - 510) = today + remaining average)
 - **Move Goal:** 900 cal (dashed line on chart)
 - **Data Time marker:** 3:40 PM (vertical line on chart)
 
-**User Insight:** "At 3:43 PM, I've burned 550 cal as of 3:40 PM (most recent data), which is 40 cal ahead of my typical Saturday pace at this time. If I continue my average pattern, I'll finish the day around 1,013 cal, which exceeds my 900 cal move goal."
+**User Insight:** "At 3:43 PM, I've burned 550 cal as of 3:40 PM (most recent data), which is 40 cal ahead of my typical Saturday pace. Based on my current pace, I'm projected to finish around 1,053 cal, exceeding my 900 cal move goal."
 
 ---
 

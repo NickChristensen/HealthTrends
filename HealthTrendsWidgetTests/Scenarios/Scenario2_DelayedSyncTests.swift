@@ -49,7 +49,7 @@ struct DelayedSyncTests {
 		#expect(entry.todayTotal < 550.0)
 
 		// Average should still project to midnight
-		#expect(entry.projectedTotal == 1013.0)
+		#expect(entry.averageTotal == 1013.0)
 
 		// Move goal unchanged
 		#expect(entry.moveGoal == 900.0)
@@ -200,7 +200,7 @@ struct DelayedSyncTests {
 		#expect(dataMinute == 15)
 
 		// Should still have average projection (from cache)
-		#expect(entry.projectedTotal > 0)
+		#expect(entry.averageTotal > 0)
 
 		// Move goal from cache
 		#expect(entry.moveGoal == 900.0)

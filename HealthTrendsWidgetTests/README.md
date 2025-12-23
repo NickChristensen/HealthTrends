@@ -130,7 +130,7 @@ Tests use **exact equality**, not ranges:
 ```swift
 // ✅ CORRECT: Exact assertion
 #expect(entry.todayTotal == 550.0)
-#expect(entry.projectedTotal == 1013.0)
+#expect(entry.averageTotal == 1013.0)
 
 // ❌ WRONG: Ranges or tolerances
 #expect(entry.todayTotal >= 540.0 && entry.todayTotal <= 560.0)
@@ -217,7 +217,7 @@ struct MyNewScenarioTests {
 
         // THEN: Exact assertions
         #expect(entry.todayTotal == 550.0)
-        #expect(entry.projectedTotal == 1013.0)
+        #expect(entry.averageTotal == 1013.0)
     }
 }
 ```
