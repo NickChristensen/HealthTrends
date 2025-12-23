@@ -64,7 +64,7 @@ struct EnergyTrendView: View {
 		if widgetFamily == .systemMedium {
 			// Medium widget: horizontal layout
             let spacing = 16.0
-			HStack(spacing: spacing) {
+            HStack(spacing: spacing * 1.5) {
 				// Header
                 VStack {
 					todayStatistic

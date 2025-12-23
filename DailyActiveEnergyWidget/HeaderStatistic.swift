@@ -26,6 +26,7 @@ struct HeaderStatistic<Indicator: View, Label: View, Statistic: View, Unit: View
 					.frame(width: 10, height: 10)
 				label
                     .font(.system(.caption, design: .rounded))
+                    .fontWeight(.bold)
 			}
 			HStack(alignment: .firstTextBaseline, spacing: 0) {
 				statistic
@@ -35,7 +36,6 @@ struct HeaderStatistic<Indicator: View, Label: View, Statistic: View, Unit: View
                 Text(" ").font(.caption2)
 				unit
                     .font(.system(.caption, design: .rounded))
-					.fontWeight(.bold)
                     .foregroundStyle(Color("StatisticColor"))
 			}
 		}
