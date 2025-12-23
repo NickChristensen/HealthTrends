@@ -11,7 +11,7 @@ struct EnergyTrendView: View {
 	let todayHourlyData: [HourlyEnergyData]
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
-	let projectedTotal: Double
+	let averageTotal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
@@ -22,9 +22,9 @@ struct EnergyTrendView: View {
 	}
 
 	/// User's projected end-of-day total based on current pace
-	private var userProjectedTotal: Double {
+	private var projectedTotal: Double {
 		// todayTotal + remaining average calories for the day
-		todayTotal + (projectedTotal - averageAtCurrentHour)
+		todayTotal + (averageTotal - averageAtCurrentHour)
 	}
 
 	var body: some View {
@@ -49,7 +49,7 @@ struct EnergyTrendView: View {
 
                     HeaderStatistic(
                         label: "Projected",
-                        statistic: userProjectedTotal,
+                        statistic: projectedTotal,
                         color: Color("ProjectedColor")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -88,7 +88,7 @@ struct EnergyTrendView: View {
                     
                     HeaderStatistic(
                         label: "Projected",
-                        statistic: userProjectedTotal,
+                        statistic: projectedTotal,
                         color: Color("ProjectedColor")
                     )
                     .opacity(widgetRenderingMode.tertiaryOpacity)
