@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "(command -v bd >/dev/null || npm install -g @beads/bd) && bd prime"
+            "command": "(command -v bd >/dev/null || curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash) && bd prime"
           }
         ]
       }
