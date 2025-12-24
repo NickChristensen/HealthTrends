@@ -1,5 +1,6 @@
-import Testing
 import HealthKit
+import Testing
+
 @testable import DailyActiveEnergyWidgetExtension
 @testable import HealthTrendsShared
 
@@ -35,7 +36,8 @@ struct TodayOnlyTests {
 		)
 
 		// WHEN: Generate entry (today succeeds, average fails)
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Entry shows today-only state (graceful degradation)
 		#expect(entry.isAuthorized == true)
@@ -75,7 +77,8 @@ struct TodayOnlyTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Widget can still answer "How much have I burned?"
 		#expect(entry.todayTotal > 0)
@@ -87,7 +90,7 @@ struct TodayOnlyTests {
 		// Today data should be cumulative
 		let todayData = entry.todayHourlyData
 		for i in 1..<todayData.count {
-			#expect(todayData[i].calories >= todayData[i-1].calories)
+			#expect(todayData[i].calories >= todayData[i - 1].calories)
 		}
 	}
 }

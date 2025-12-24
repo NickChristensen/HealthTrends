@@ -1,5 +1,6 @@
-import Testing
 import HealthKit
+import Testing
+
 @testable import DailyActiveEnergyWidgetExtension
 @testable import HealthTrendsShared
 
@@ -75,7 +76,8 @@ struct DelayedSyncTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Today's data should stop at 2:15 PM
 		let calendar = Calendar.current
@@ -111,7 +113,8 @@ struct DelayedSyncTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Average data should still project to end of day
 		let averageData = entry.averageHourlyData
@@ -163,9 +166,12 @@ struct DelayedSyncTests {
 		let calendar = Calendar.current
 		let startOfDay = calendar.startOfDay(for: dataTime)
 		let cachedHourlyData = [
-			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 9, to: startOfDay)!, calories: 120.0),
-			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 10, to: startOfDay)!, calories: 210.0),
-			HourlyEnergyData(hour: calendar.date(byAdding: .hour, value: 14, to: startOfDay)!, calories: 480.0)
+			HourlyEnergyData(
+				hour: calendar.date(byAdding: .hour, value: 9, to: startOfDay)!, calories: 120.0),
+			HourlyEnergyData(
+				hour: calendar.date(byAdding: .hour, value: 10, to: startOfDay)!, calories: 210.0),
+			HourlyEnergyData(
+				hour: calendar.date(byAdding: .hour, value: 14, to: startOfDay)!, calories: 480.0),
 		]
 		try mockTodayCache.writeEnergyData(
 			todayTotal: 480.0,

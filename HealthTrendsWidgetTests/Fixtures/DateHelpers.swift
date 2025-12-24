@@ -10,7 +10,9 @@ enum DateHelpers {
 	///   - weeksAgo: How many weeks in the past (0 = current week)
 	///   - referenceDate: Base date for calculations (defaults to current time)
 	/// - Returns: Date matching the specified criteria
-	static func createDate(weekday: Int, hour: Int, minute: Int, weeksAgo: Int = 0, from referenceDate: Date? = nil) -> Date {
+	static func createDate(weekday: Int, hour: Int, minute: Int, weeksAgo: Int = 0, from referenceDate: Date? = nil)
+		-> Date
+	{
 		let calendar = Calendar.current
 		let baseDate = referenceDate ?? Date()
 
@@ -28,7 +30,8 @@ enum DateHelpers {
 
 		// If we need to go back weeks
 		if weeksAgo > 0 {
-			guard let pastDate = calendar.date(byAdding: .weekOfYear, value: -weeksAgo, to: targetDate) else {
+			guard let pastDate = calendar.date(byAdding: .weekOfYear, value: -weeksAgo, to: targetDate)
+			else {
 				fatalError("Failed to subtract \(weeksAgo) weeks from date")
 			}
 			return pastDate

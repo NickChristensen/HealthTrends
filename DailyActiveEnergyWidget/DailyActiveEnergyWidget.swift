@@ -338,8 +338,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				Self.logger.warning("   Error: \(error.localizedDescription, privacy: .public)")
 			}
 
-            // TODO: Remove this check
-            // Check data freshness - warn if older than 30 minutes
+			// TODO: Remove this check
+			// Check data freshness - warn if older than 30 minutes
 			if let latestDataPoint = hourlyData.last {
 				let dataAge = date.timeIntervalSince(latestDataPoint.hour)
 
@@ -388,13 +388,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 				let projectedTotal = averageCache?.projectedTotal ?? 0
 
 				// Determine effectiveDate: use sample timestamp ONLY if it's from today
-				let effectiveDate = validateTimestampIsToday(todayCache.latestSampleTimestamp, comparedTo: date) ?? date
+				let effectiveDate =
+					validateTimestampIsToday(todayCache.latestSampleTimestamp, comparedTo: date)
+					?? date
 				if todayCache.latestSampleTimestamp != nil && effectiveDate == date {
 					// Timestamp was present but invalid (stale)
 					Self.logger.warning(
-						"⚠️ Stale sample timestamp in cache (not from today) - using current time as fallback")
+						"⚠️ Stale sample timestamp in cache (not from today) - using current time as fallback"
+					)
 					Self.logger.warning(
-						"   Sample timestamp: \(todayCache.latestSampleTimestamp!, privacy: .public)")
+						"   Sample timestamp: \(todayCache.latestSampleTimestamp!, privacy: .public)"
+					)
 					Self.logger.warning(
 						"   Current time: \(date, privacy: .public)")
 				} else if todayCache.latestSampleTimestamp == nil {
@@ -598,21 +602,29 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		// This prevents the NOW marker from appearing ahead of actual data when there's a delay
 		// between sample collection and widget refresh (e.g., device locked, background sync).
 		// IMPORTANT: Only use timestamps if they're from today (not stale)
-		let effectiveDate = validateTimestampIsToday(latestSampleTimestamp, comparedTo: date)
+		let effectiveDate =
+			validateTimestampIsToday(latestSampleTimestamp, comparedTo: date)
 			?? validateTimestampIsToday(todayData.last?.hour, comparedTo: date)
 			?? date
 
 		// Log warnings for stale timestamps
-		if latestSampleTimestamp != nil && validateTimestampIsToday(latestSampleTimestamp, comparedTo: date) == nil {
+		if latestSampleTimestamp != nil
+			&& validateTimestampIsToday(latestSampleTimestamp, comparedTo: date) == nil
+		{
 			if validateTimestampIsToday(todayData.last?.hour, comparedTo: date) != nil {
-				Self.logger.warning("⚠️ Stale latestSampleTimestamp (not from today) - using last data point instead")
+				Self.logger.warning(
+					"⚠️ Stale latestSampleTimestamp (not from today) - using last data point instead"
+				)
 				Self.logger.warning("   Sample timestamp: \(latestSampleTimestamp!, privacy: .public)")
 			} else {
-				Self.logger.warning("⚠️ Stale latestSampleTimestamp (not from today) - using current time")
+				Self.logger.warning(
+					"⚠️ Stale latestSampleTimestamp (not from today) - using current time")
 				Self.logger.warning("   Sample timestamp: \(latestSampleTimestamp!, privacy: .public)")
 			}
 		}
-		if todayData.last?.hour != nil && validateTimestampIsToday(todayData.last?.hour, comparedTo: date) == nil {
+		if todayData.last?.hour != nil
+			&& validateTimestampIsToday(todayData.last?.hour, comparedTo: date) == nil
+		{
 			Self.logger.warning("⚠️ Stale last data point (not from today) - using current time")
 			Self.logger.warning("   Last data point: \(todayData.last!.hour, privacy: .public)")
 		}
@@ -656,11 +668,14 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			let projectedTotal = averageCache?.projectedTotal ?? 0
 
 			// Use sample timestamp ONLY if it's from today
-			let effectiveDate = validateTimestampIsToday(todayCache.latestSampleTimestamp, comparedTo: date) ?? date
+			let effectiveDate =
+				validateTimestampIsToday(todayCache.latestSampleTimestamp, comparedTo: date) ?? date
 			if todayCache.latestSampleTimestamp != nil && effectiveDate == date {
 				Self.logger.warning(
-					"⚠️ Widget gallery: Stale sample timestamp in cache (not from today) - using current time")
-				Self.logger.warning("   Sample timestamp: \(todayCache.latestSampleTimestamp!, privacy: .public)")
+					"⚠️ Widget gallery: Stale sample timestamp in cache (not from today) - using current time"
+				)
+				Self.logger.warning(
+					"   Sample timestamp: \(todayCache.latestSampleTimestamp!, privacy: .public)")
 			} else if todayCache.latestSampleTimestamp == nil {
 				Self.logger.warning(
 					"⚠️ Widget gallery: No sample timestamp in cache - using current time")
