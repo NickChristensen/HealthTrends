@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$CLAUDE_CODE_REMOTE\" ]; then curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && bd config set no-db true && bd prime; fi"
+            "command": "if [ -n \"$CLAUDE_CODE_REMOTE\" ]; then curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && bd init && bd prime; fi"
           }
         ]
       }
