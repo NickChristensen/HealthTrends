@@ -4,8 +4,8 @@ import SwiftUI
 struct HeaderStatistic<Indicator: View, Label: View, Statistic: View, Unit: View>: View {
 	let indicator: Indicator
 	let label: Label
-    let statistic: Statistic
-    let unit: Unit
+	let statistic: Statistic
+	let unit: Unit
 
 	init(
 		@ViewBuilder indicator: (Circle) -> Indicator,
@@ -25,18 +25,18 @@ struct HeaderStatistic<Indicator: View, Label: View, Statistic: View, Unit: View
 				indicator
 					.frame(width: 10, height: 10)
 				label
-                    .font(.system(.caption, design: .rounded))
-                    .fontWeight(.bold)
+					.font(.system(.caption, design: .rounded))
+					.fontWeight(.bold)
 			}
 			HStack(alignment: .firstTextBaseline, spacing: 0) {
 				statistic
-                    .font(.system(.title2, design: .rounded))
+					.font(.system(.title2, design: .rounded))
 					.fontWeight(.bold)
-                    .foregroundStyle(Color("StatisticColor"))
-                Text(" ").font(.caption2)
+					.foregroundStyle(Color("StatisticColor"))
+				Text(" ").font(.caption2)
 				unit
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color("StatisticColor"))
+					.font(.system(.caption, design: .rounded))
+					.foregroundStyle(Color("StatisticColor"))
 			}
 		}
 	}

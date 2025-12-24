@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import HealthTrendsShared
 
 // MARK: - Mock Cache Managers

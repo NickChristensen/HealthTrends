@@ -26,79 +26,80 @@ struct EnergyTrendView: View {
 		// todayTotal + remaining average calories for the day
 		todayTotal + (averageTotal - averageAtCurrentHour)
 	}
-    
-    private var todayStatistic: some View {
-        HeaderStatistic { circle in
-            circle.fill(Color("AccentColor"))
-        } label: {
-            Text("Today").foregroundStyle(Color("AccentColor"))
-        } statistic: { format in
-            format(todayTotal)
-        }
-        .opacity(widgetRenderingMode.primaryOpacity)
-    }
-    
-    private var averageStatistic: some View {
-        HeaderStatistic { circle in
-            circle.fill(Color("AverageColor"))
-        } label: {
-            Text("Average").foregroundStyle(Color("AverageColor"))
-        } statistic: { format in
-            format(averageAtCurrentHour)
-        }
-        .opacity(widgetRenderingMode.tertiaryOpacity)
-    }
-    
-    private var projectedStatistic: some View {
-        HeaderStatistic { circle in
-            circle.strokeBorder(Color("AccentColor"), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
-        } label: {
-            Text("Projected").foregroundStyle(Color("AccentColor"))
-        } statistic: { format in
-            format(projectedTotal)
-        }
-        .opacity(widgetRenderingMode.secondaryOpacity)
-    }
+
+	private var todayStatistic: some View {
+		HeaderStatistic { circle in
+			circle.fill(Color("AccentColor"))
+		} label: {
+			Text("Today").foregroundStyle(Color("AccentColor"))
+		} statistic: { format in
+			format(todayTotal)
+		}
+		.opacity(widgetRenderingMode.primaryOpacity)
+	}
+
+	private var averageStatistic: some View {
+		HeaderStatistic { circle in
+			circle.fill(Color("AverageColor"))
+		} label: {
+			Text("Average").foregroundStyle(Color("AverageColor"))
+		} statistic: { format in
+			format(averageAtCurrentHour)
+		}
+		.opacity(widgetRenderingMode.tertiaryOpacity)
+	}
+
+	private var projectedStatistic: some View {
+		HeaderStatistic { circle in
+			circle.strokeBorder(
+				Color("AccentColor"), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
+		} label: {
+			Text("Projected").foregroundStyle(Color("AccentColor"))
+		} statistic: { format in
+			format(projectedTotal)
+		}
+		.opacity(widgetRenderingMode.secondaryOpacity)
+	}
 
 	var body: some View {
 		if widgetFamily == .systemMedium {
 			// Medium widget: horizontal layout
-            let spacing = 16.0
-            HStack(spacing: spacing * 1.5) {
+			let spacing = 16.0
+			HStack(spacing: spacing * 1.5) {
 				// Header
-                VStack {
+				VStack {
 					todayStatistic
-					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    averageStatistic
-					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    projectedStatistic
-					.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+						.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+					averageStatistic
+						.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+					projectedStatistic
+						.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 				}
-                .fixedSize(horizontal: true, vertical: false)
+				.fixedSize(horizontal: true, vertical: false)
 
-                EnergyChartView(
-                    todayHourlyData: todayHourlyData,
-                    averageHourlyData: averageHourlyData,
-                    moveGoal: moveGoal,
-                    dataTime: dataTime,
-                )
+				EnergyChartView(
+					todayHourlyData: todayHourlyData,
+					averageHourlyData: averageHourlyData,
+					moveGoal: moveGoal,
+					dataTime: dataTime,
+				)
 				.frame(maxWidth: .infinity)
 			}
-            .padding(spacing)
-            .background(chartBackgroundColor)
+			.padding(spacing)
+			.background(chartBackgroundColor)
 		} else {
 			// Large/ExtraLarge widgets: vertical layout (stats on top, chart below)
 			let spacing = 16.0
 			VStack(spacing: spacing) {
 				// Header
-                HStack {
-                    todayStatistic
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    averageStatistic
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    projectedStatistic
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
+				HStack {
+					todayStatistic
+						.frame(maxWidth: .infinity, alignment: .leading)
+					averageStatistic
+						.frame(maxWidth: .infinity, alignment: .center)
+					projectedStatistic
+						.frame(maxWidth: .infinity, alignment: .trailing)
+				}
 				.fixedSize(horizontal: false, vertical: true)
 
 				EnergyChartView(
@@ -106,11 +107,11 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					dataTime: dataTime,
-                )
+				)
 				.frame(maxHeight: .infinity)
 			}
 			.padding(spacing)
-            .background(chartBackgroundColor)
+			.background(chartBackgroundColor)
 		}
 	}
 }

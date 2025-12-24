@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import HealthTrendsShared
 
 /// Unit tests for HourlyEnergyData model and interpolation logic
@@ -27,7 +28,7 @@ struct HourlyEnergyDataTests {
 		let data = makeHourlyData(hours: [
 			(9, 100.0),
 			(10, 200.0),
-			(11, 300.0)
+			(11, 300.0),
 		])
 
 		// WHEN: Interpolating at exactly 10 AM
@@ -46,7 +47,7 @@ struct HourlyEnergyDataTests {
 		// GIVEN: Data at 10 AM (100 cal) and 11 AM (200 cal)
 		let data = makeHourlyData(hours: [
 			(10, 100.0),
-			(11, 200.0)
+			(11, 200.0),
 		])
 
 		// WHEN: Interpolating at 10:30 AM (halfway between)
@@ -66,7 +67,7 @@ struct HourlyEnergyDataTests {
 		// GIVEN: Data at 2 PM (400 cal) and 3 PM (500 cal)
 		let data = makeHourlyData(hours: [
 			(14, 400.0),
-			(15, 500.0)
+			(15, 500.0),
 		])
 
 		// WHEN: Interpolating at 2:15 PM (25% through the hour)
@@ -86,7 +87,7 @@ struct HourlyEnergyDataTests {
 		// GIVEN: Data starting at 9 AM
 		let data = makeHourlyData(hours: [
 			(9, 100.0),
-			(10, 200.0)
+			(10, 200.0),
 		])
 
 		// WHEN: Interpolating at 8 AM (before any data)
@@ -105,7 +106,7 @@ struct HourlyEnergyDataTests {
 		// GIVEN: Data ending at 3 PM
 		let data = makeHourlyData(hours: [
 			(14, 400.0),
-			(15, 500.0)
+			(15, 500.0),
 		])
 
 		// WHEN: Interpolating at 4 PM (after all data)
@@ -167,7 +168,7 @@ struct HourlyEnergyDataTests {
 		// GIVEN: Data at 11 PM (2300 cal) and midnight (2400 cal)
 		let data = makeHourlyData(hours: [
 			(23, 2300.0),
-			(0, 2400.0)  // Next day's midnight
+			(0, 2400.0),  // Next day's midnight
 		])
 
 		// WHEN: Interpolating at 11:30 PM

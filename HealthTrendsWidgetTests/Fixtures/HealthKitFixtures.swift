@@ -15,7 +15,9 @@ enum HealthKitFixtures {
 	/// - Average: 510 cal (average of last 10 Saturdays by 3:40 PM)
 	/// - Total: 1,013 cal (average of full-day totals from last 10 Saturdays)
 	/// - Move Goal: 900 cal
-	static func scenario1_normalOperation() -> (samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date) {
+	static func scenario1_normalOperation() -> (
+		samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date
+	) {
 		let saturday343PM = DateHelpers.createSaturday(hour: 15, minute: 43)  // Current time
 		let saturday340PM = DateHelpers.createSaturday(hour: 15, minute: 40)  // Data Time
 
@@ -28,7 +30,7 @@ enum HealthKitFixtures {
 			// Noon-3 PM (afternoon): 220 cal
 			75, 75, 70,
 			// 3-3:40 PM (partial hour, ~40 min): 60 cal -> Total ~550 cal
-			60
+			60,
 		]
 
 		let todaySamples = SampleHelpers.createDailySamples(
@@ -58,7 +60,9 @@ enum HealthKitFixtures {
 	/// - Data Time: 2:15 PM (marker shows staleness)
 	/// - Today: 480 cal (stops at 2:15 PM)
 	/// - Average continues projecting forward from Data Time
-	static func scenario2_delayedSync() -> (samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date) {
+	static func scenario2_delayedSync() -> (
+		samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date
+	) {
 		let saturday343PM = DateHelpers.createSaturday(hour: 15, minute: 43)  // Current time
 		let saturday215PM = DateHelpers.createSaturday(hour: 14, minute: 15)  // Data Time
 
@@ -71,7 +75,7 @@ enum HealthKitFixtures {
 			// Noon-2 PM: 180 cal
 			90, 90,
 			// 2-2:15 PM (15 min): 20 cal
-			20
+			20,
 		]
 
 		// Create samples ending at 2:15 PM (not 3 PM)
@@ -99,7 +103,9 @@ enum HealthKitFixtures {
 	/// - No "Today" line shown (data from wrong day)
 	/// - Average-only display for Saturday
 	/// - Data Time marker at current clock time (10:23 AM) since showing projected average
-	static func scenario3_staleData() -> (samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date) {
+	static func scenario3_staleData() -> (
+		samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date
+	) {
 		let saturday1023AM = DateHelpers.createSaturday(hour: 10, minute: 23)  // Current time
 		let friday1047PM = DateHelpers.createFriday(hour: 22, minute: 47)  // Last data (previous day!)
 
@@ -110,7 +116,7 @@ enum HealthKitFixtures {
 			5, 5, 5, 5, 5, 10,  // 0-6 AM
 			30, 40, 50, 60, 70, 80,  // 6 AM-noon
 			90, 85, 80, 75, 70, 65,  // Noon-6 PM
-			60, 50, 40, 30, 20  // 6 PM-10:47 PM (last sample at 10:47 PM)
+			60, 50, 40, 30, 20,  // 6 PM-10:47 PM (last sample at 10:47 PM)
 		]
 
 		let fridaySamples = SampleHelpers.createDailySamples(
@@ -156,7 +162,9 @@ enum HealthKitFixtures {
 	/// - Total: 1,013 cal (average of full-day totals from only 2 Saturdays)
 	/// - Move Goal: 900 cal
 	/// - Widget should handle sparse data gracefully (no NaN, no crashes)
-	static func edgeCase_sparseHistoricalData() -> (samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date) {
+	static func edgeCase_sparseHistoricalData() -> (
+		samples: [HKQuantitySample], goal: Double, currentTime: Date, dataTime: Date
+	) {
 		let saturday343PM = DateHelpers.createSaturday(hour: 15, minute: 43)  // Current time
 		let saturday340PM = DateHelpers.createSaturday(hour: 15, minute: 40)  // Data Time
 
@@ -169,7 +177,7 @@ enum HealthKitFixtures {
 			// Noon-3 PM (afternoon): 220 cal
 			75, 75, 70,
 			// 3-3:40 PM (partial hour, ~40 min): 60 cal -> Total ~550 cal
-			60
+			60,
 		]
 
 		let todaySamples = SampleHelpers.createDailySamples(

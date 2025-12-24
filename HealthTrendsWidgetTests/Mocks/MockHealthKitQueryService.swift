@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+
 @testable import HealthTrendsShared
 
 /// Mock implementation of HealthDataProvider for testing

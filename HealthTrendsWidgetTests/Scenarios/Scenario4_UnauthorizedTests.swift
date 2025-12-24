@@ -1,5 +1,6 @@
-import Testing
 import HealthKit
+import Testing
+
 @testable import DailyActiveEnergyWidgetExtension
 @testable import HealthTrendsShared
 
@@ -77,7 +78,8 @@ struct UnauthorizedTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: Date(), configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: Date(), configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Should return early with unauthorized state
 		#expect(entry.isAuthorized == false)
@@ -108,7 +110,8 @@ struct UnauthorizedTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: now, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: now, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Entry date should still be current time
 		let calendar = Calendar.current
@@ -136,7 +139,8 @@ struct UnauthorizedTests {
 		)
 
 		// WHEN: Generate entry (HealthKit fails, no cache)
-		let entry = await provider.loadFreshEntry(forDate: now, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: now, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Entry should be unauthorized/error state (calls createErrorEntry)
 		#expect(entry.isAuthorized == false)

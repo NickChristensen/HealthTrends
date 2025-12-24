@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import HealthTrendsShared
 
 /// Unit tests for AverageDataCache and Weekday structures

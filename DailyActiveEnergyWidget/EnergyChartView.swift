@@ -165,12 +165,18 @@ struct EnergyChartView: View {
 
 			if showTickLine {
 				// Visible labeled hours: tick line
-				AxisTick(centered: true, length: 6, stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round))
-					.offset(CGSize(width: 0, height: 8))
+				AxisTick(
+					centered: true, length: 6,
+					stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round)
+				)
+				.offset(CGSize(width: 0, height: 8))
 			} else {
 				// Unlabeled hours or hidden labels: dot
-				AxisTick(centered: true, length: 0, stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round))
-					.offset(CGSize(width: 0, height: 11))
+				AxisTick(
+					centered: true, length: 0,
+					stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round)
+				)
+				.offset(CGSize(width: 0, height: 11))
 			}
 		}
 	}
@@ -274,16 +280,20 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var projectedLine: some ChartContent {
-        ForEach(projectedData) { data in
-            LineMark(
-                x: .value("Hour", data.hour),
-                y: .value("Calories", data.calories),
-                series: .value("Series", "Projected")
-            )
-            .foregroundStyle(Color("AccentColor"))
-            .lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round, dash: [lineWidth, lineWidth * 1.5]))
-            .opacity(widgetRenderingMode.primaryOpacity)
-        }
+		ForEach(projectedData) { data in
+			LineMark(
+				x: .value("Hour", data.hour),
+				y: .value("Calories", data.calories),
+				series: .value("Series", "Projected")
+			)
+			.foregroundStyle(Color("AccentColor"))
+			.lineStyle(
+				StrokeStyle(
+					lineWidth: lineWidth, lineCap: .round, lineJoin: .round,
+					dash: [lineWidth, lineWidth * 1.5])
+			)
+			.opacity(widgetRenderingMode.primaryOpacity)
+		}
 	}
 
 	@ChartContentBuilder

@@ -1,5 +1,6 @@
-import Testing
 import HealthKit
+import Testing
+
 @testable import DailyActiveEnergyWidgetExtension
 @testable import HealthTrendsShared
 
@@ -71,7 +72,8 @@ struct StaleDataTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Data time should be current clock time (Saturday 10:23 AM), not Friday's stale time
 		// In average-only view, we show the current time as the data time marker
@@ -105,7 +107,8 @@ struct StaleDataTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Average should be calculated for Saturday, not Friday
 		let averageData = entry.averageHourlyData
@@ -147,7 +150,9 @@ struct StaleDataTests {
 			todayTotal: 850.0,  // Friday's total at 10:47 PM
 			moveGoal: moveGoal,
 			todayHourlyData: [
-				HourlyEnergyData(hour: calendar.date(bySettingHour: 22, minute: 47, second: 0, of: yesterday)!, calories: 850.0)
+				HourlyEnergyData(
+					hour: calendar.date(bySettingHour: 22, minute: 47, second: 0, of: yesterday)!,
+					calories: 850.0)
 			],
 			latestSampleTimestamp: yesterdayEvening
 		)

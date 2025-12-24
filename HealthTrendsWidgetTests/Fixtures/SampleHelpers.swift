@@ -108,7 +108,7 @@ enum SampleHelpers {
 			70, 75, 70,
 			// 3-4 PM: 60 cal (at 3:40 PM = 470 + 40 = 510)
 			// 4 PM - Midnight (continued activity + wind-down): 483 cal
-			60, 85, 82, 78, 67, 58, 47, 38, 28
+			60, 85, 82, 78, 67, 58, 47, 38, 28,
 		]
 	}
 
@@ -120,9 +120,9 @@ enum SampleHelpers {
 		// Today's data: 550 cal by 3 PM
 		// Distribute across hours: gradually increasing through the day
 		let todayCalories: [Double] = [
-			5, 5, 5, 5, 5, 10,           // 0-6 AM (35 cal)
-			30, 40, 50, 60, 70, 80,      // 6 AM-noon (330 cal)
-			90, 85, 60                    // Noon-3 PM (235 cal) -> Total ~600 cal (close to 550 target)
+			5, 5, 5, 5, 5, 10,  // 0-6 AM (35 cal)
+			30, 40, 50, 60, 70, 80,  // 6 AM-noon (330 cal)
+			90, 85, 60,  // Noon-3 PM (235 cal) -> Total ~600 cal (close to 550 target)
 		]
 
 		let todaySamples = createDailySamples(date: saturday3PM, caloriesPerHour: todayCalories)

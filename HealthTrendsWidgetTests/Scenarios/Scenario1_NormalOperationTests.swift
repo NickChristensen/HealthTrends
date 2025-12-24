@@ -1,5 +1,6 @@
-import Testing
 import HealthKit
+import Testing
+
 @testable import DailyActiveEnergyWidgetExtension
 @testable import HealthTrendsShared
 
@@ -82,7 +83,8 @@ struct NormalOperationTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Today's hourly data should be cumulative and increasing
 		let todayData = entry.todayHourlyData
@@ -130,7 +132,8 @@ struct NormalOperationTests {
 		)
 
 		// WHEN: Generate entry
-		let entry = await provider.loadFreshEntry(forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
+		let entry = await provider.loadFreshEntry(
+			forDate: currentTime, configuration: EnergyWidgetConfigurationIntent())
 
 		// THEN: Average data should project through end of day
 		let averageData = entry.averageHourlyData
