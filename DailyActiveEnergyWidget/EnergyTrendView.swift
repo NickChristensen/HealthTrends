@@ -13,6 +13,7 @@ struct EnergyTrendView: View {
 	let moveGoal: Double
 	let averageTotal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
+	let chartStartHour: Int  // Hour to start the chart X-axis (0-12)
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
@@ -82,6 +83,7 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					dataTime: dataTime,
+					chartStartHour: chartStartHour
 				)
 				.frame(maxWidth: .infinity)
 			}
@@ -107,6 +109,7 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					dataTime: dataTime,
+					chartStartHour: chartStartHour
 				)
 				.frame(maxHeight: .infinity)
 			}
