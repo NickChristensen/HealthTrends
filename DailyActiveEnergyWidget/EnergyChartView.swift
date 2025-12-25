@@ -216,11 +216,25 @@ struct EnergyChartView: View {
 	// MARK: - Computed Data Properties
 
 	/// Filter data to only include hours >= chartStartHour
+	/// Preserves end-of-day midnight point (next day's midnight) for projected total
 	private func filterByStartHour(_ data: [HourlyEnergyData]) -> [HourlyEnergyData] {
 		guard chartStartHour > 0 else { return data }
 		return data.filter { dataPoint in
 			let hour = calendar.component(.hour, from: dataPoint.hour)
-			return hour >= chartStartHour
+
+			// Keep if hour >= start hour
+			if hour >= chartStartHour {
+				return true
+			}
+
+			// Special case: keep end-of-day midnight (hour == 0, but date is tomorrow)
+			if hour == 0 {
+				let startOfToday = calendar.startOfDay(for: Date())
+				let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+				return calendar.isDate(dataPoint.hour, inSameDayAs: startOfTomorrow)
+			}
+
+			return false
 		}
 	}
 
