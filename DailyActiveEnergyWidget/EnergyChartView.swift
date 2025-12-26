@@ -15,13 +15,16 @@ private struct DataTimeLabelPosition {
 	let labelWidth: CGFloat
 	let chartWidth: CGFloat
 
-	init(dataTime: Date, chartWidth: CGFloat) {
+	init(dataTime: Date, chartWidth: CGFloat, chartStartHour: Int = 0) {
 		let calendar = Calendar.current
 		let startOfDay = calendar.startOfDay(for: dataTime)
-		let dataTimeOffset = dataTime.timeIntervalSince(startOfDay)
-		let dayDuration = TimeInterval(24 * 60 * 60)
+		let chartStartDate = calendar.date(byAdding: .hour, value: chartStartHour, to: startOfDay)!
+		let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
-		self.position = chartWidth * (dataTimeOffset / dayDuration)
+		let dataTimeOffset = dataTime.timeIntervalSince(chartStartDate)
+		let chartDuration = endOfDay.timeIntervalSince(chartStartDate)
+
+		self.position = chartWidth * max(0, dataTimeOffset / chartDuration)
 		self.chartWidth = chartWidth
 
 		let dataTimeFormatter = Date.FormatStyle().hour().minute()
@@ -58,13 +61,16 @@ private struct DataTimeLabelPosition {
 }
 
 /// Helper to determine if Data Time label collides with start/end of day labels
-private func calculateLabelCollisions(chartWidth: CGFloat, dataTime: Date) -> (hidesStart: Bool, hidesEnd: Bool) {
-	let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
+private func calculateLabelCollisions(chartWidth: CGFloat, dataTime: Date, chartStartHour: Int = 0) -> (
+	hidesStart: Bool, hidesEnd: Bool
+) {
+	let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth, chartStartHour: chartStartHour)
 
 	let calendar = Calendar.current
 	let startOfDay = calendar.startOfDay(for: dataTime)
+	let chartStartDate = calendar.date(byAdding: .hour, value: chartStartHour, to: startOfDay)!
 	let hourFormatter = Date.FormatStyle().hour()
-	let startLabelText = startOfDay.formatted(hourFormatter)
+	let startLabelText = chartStartDate.formatted(hourFormatter)
 	let startEndLabelWidth = measureTextWidth(startLabelText, textStyle: .caption1)
 
 	let minSeparation: CGFloat = 4
@@ -85,6 +91,7 @@ private struct ChartXAxisLabels: View {
 	let chartWidth: CGFloat
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 	let labelFont: Font  // Font size for labels
+	let chartStartHour: Int  // Hour to start the chart X-axis (0-12)
 
 	@Environment(\.widgetFamily) private var widgetFamily
 
@@ -93,27 +100,34 @@ private struct ChartXAxisLabels: View {
 	var body: some View {
 		ZStack(alignment: .bottom) {
 			let startOfDay = calendar.startOfDay(for: Date())
+			let chartStartDate = calendar.date(byAdding: .hour, value: chartStartHour, to: startOfDay)!
 			let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-			let collisions = calculateLabelCollisions(chartWidth: chartWidth, dataTime: dataTime)
-			let labelPos = DataTimeLabelPosition(dataTime: dataTime, chartWidth: chartWidth)
+			let dataTimeVisible = dataTime >= chartStartDate
+			let collisions = calculateLabelCollisions(
+				chartWidth: chartWidth, dataTime: dataTime, chartStartHour: chartStartHour)
+			let labelPos = DataTimeLabelPosition(
+				dataTime: dataTime, chartWidth: chartWidth, chartStartHour: chartStartHour)
 
-			// Start of day - left aligned (hide if collides with current hour or not systemLarge)
-			if !collisions.hidesStart {
-				Text(startOfDay, format: .dateTime.hour())
+			// Chart start time - left aligned (hide only if data time is visible AND collides)
+			if !dataTimeVisible || !collisions.hidesStart {
+				Text(chartStartDate, format: .dateTime.hour())
 					.font(labelFont)
 					.foregroundStyle(.secondary)
 					.frame(maxWidth: .infinity, alignment: .leading)
 			}
 
 			// Data Time - centered at natural position, but edge-aligned if that would go out of bounds
-			Text(dataTime, format: .dateTime.hour().minute())
-				.font(labelFont)
-				.foregroundStyle(.secondary)
-				.frame(maxWidth: .infinity, alignment: labelPos.alignment)
-				.offset(x: labelPos.offset)
+			// Only show if data time is within chart bounds
+			if dataTime >= chartStartDate {
+				Text(dataTime, format: .dateTime.hour().minute())
+					.font(labelFont)
+					.foregroundStyle(.secondary)
+					.frame(maxWidth: .infinity, alignment: labelPos.alignment)
+					.offset(x: labelPos.offset)
+			}
 
-			// End of day - right aligned (hide if collides with current hour or not systemLarge)
-			if !collisions.hidesEnd {
+			// End of day - right aligned (hide only if data time is visible AND collides)
+			if !dataTimeVisible || !collisions.hidesEnd {
 				Text(endOfDay, format: .dateTime.hour())
 					.font(labelFont)
 					.foregroundStyle(.secondary)
@@ -131,6 +145,7 @@ struct EnergyChartView: View {
 	let averageHourlyData: [HourlyEnergyData]
 	let moveGoal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
+	let chartStartHour: Int  // Hour to start the chart X-axis (0-12)
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
@@ -139,6 +154,12 @@ struct EnergyChartView: View {
 	private var currentHour: Int { calendar.component(.hour, from: dataTime) }
 	private var startOfCurrentHour: Date {
 		calendar.dateInterval(of: .hour, for: dataTime)!.start
+	}
+
+	/// The start date for the chart X-axis
+	private var chartStartDate: Date {
+		let startOfDay = calendar.startOfDay(for: Date())
+		return calendar.date(byAdding: .hour, value: chartStartHour, to: startOfDay)!
 	}
 
 	private var chartBackgroundColor: Color {
@@ -154,14 +175,16 @@ struct EnergyChartView: View {
 	@AxisMarkBuilder
 	private func hourlyTickMark(
 		for date: Date, startOfDay: Date, endOfDay: Date, collisions: (hidesStart: Bool, hidesEnd: Bool),
-		dataTime: Date
+		dataTime: Date, dataTimeVisible: Bool
 	) -> some AxisMark {
 		let minutesFromDataTime = abs(date.timeIntervalSince(dataTime)) / 60
 		if minutesFromDataTime >= 20 {
 			let isStartOfDay = abs(date.timeIntervalSince(startOfDay)) < 60
 			let isEndOfDay = abs(date.timeIntervalSince(endOfDay)) < 60
+			// Show tick line if: (1) data time hidden, OR (2) data time visible but no collision
 			let showTickLine =
-				(isStartOfDay && !collisions.hidesStart) || (isEndOfDay && !collisions.hidesEnd)
+				(isStartOfDay && (!dataTimeVisible || !collisions.hidesStart))
+				|| (isEndOfDay && (!dataTimeVisible || !collisions.hidesEnd))
 
 			if showTickLine {
 				// Visible labeled hours: tick line
@@ -182,16 +205,44 @@ struct EnergyChartView: View {
 	}
 
 	/// Calculate max value for chart Y-axis
+	/// Adds padding for line stroke width so the top of lines aren't clipped
 	private func chartMaxValue(chartHeight: CGFloat) -> Double {
-		return max(
+		let maxDataValue = max(
 			todayHourlyData.last?.calories ?? 0,
 			interpolatedAverageAtDataTime?.calories ?? 0,
 			projectedData.last?.calories ?? 0,
 			moveGoal
 		)
+		// Add padding for line stroke: convert lineWidth/2 from points to calories
+		let caloriesPerPoint = maxDataValue / chartHeight
+		let strokePadding = (lineWidth / 2) * caloriesPerPoint
+		return maxDataValue + strokePadding
 	}
 
 	// MARK: - Computed Data Properties
+
+	/// Filter data to only include hours >= chartStartHour
+	/// Preserves end-of-day midnight point (next day's midnight) for projected total
+	private func filterByStartHour(_ data: [HourlyEnergyData]) -> [HourlyEnergyData] {
+		guard chartStartHour > 0 else { return data }
+		return data.filter { dataPoint in
+			let hour = calendar.component(.hour, from: dataPoint.hour)
+
+			// Keep if hour >= start hour
+			if hour >= chartStartHour {
+				return true
+			}
+
+			// Special case: keep end-of-day midnight (hour == 0, but date is tomorrow)
+			if hour == 0 {
+				let startOfToday = calendar.startOfDay(for: Date())
+				let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+				return calendar.isDate(dataPoint.hour, inSameDayAs: startOfTomorrow)
+			}
+
+			return false
+		}
+	}
 
 	/// Cleaned average data (removes stale Data Time points from cached data)
 	/// Filters out interpolated points that may have been cached by widgets
@@ -216,7 +267,7 @@ struct EnergyChartView: View {
 		if let interpolated = interpolatedAverageAtDataTime {
 			data.append(interpolated)
 		}
-		return data
+		return filterByStartHour(data)
 	}
 
 	/// Average data from Data Time to end of day (includes interpolated Data Time point)
@@ -234,7 +285,7 @@ struct EnergyChartView: View {
 		}
 		data.append(contentsOf: cleanedAverageData.filter { $0.hour >= nextHourStart })
 
-		return data
+		return filterByStartHour(data)
 	}
 
 	/// Projected data for rest of day (offset average to start from Today's current value)
@@ -247,6 +298,11 @@ struct EnergyChartView: View {
 		return averageDataAfterDataTime.map { data in
 			HourlyEnergyData(hour: data.hour, calories: offset + data.calories)
 		}
+	}
+
+	/// Today's data filtered by start hour
+	private var filteredTodayData: [HourlyEnergyData] {
+		filterByStartHour(todayHourlyData)
 	}
 
 	@ChartContentBuilder
@@ -267,7 +323,7 @@ struct EnergyChartView: View {
 	@ChartContentBuilder
 	private var todayLine: some ChartContent {
 		// Single continuous line including current hour progress
-		ForEach(todayHourlyData) { data in
+		ForEach(filteredTodayData) { data in
 			LineMark(
 				x: .value("Hour", data.hour), y: .value("Calories", data.calories),
 				series: .value("Series", "Today")
@@ -299,7 +355,8 @@ struct EnergyChartView: View {
 	@ChartContentBuilder
 	private var averagePoint: some ChartContent {
 		// Show average point at Data Time (interpolated value)
-		if let interpolated = interpolatedAverageAtDataTime {
+		// Only show if data time is within chart bounds
+		if let interpolated = interpolatedAverageAtDataTime, dataTime >= chartStartDate {
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
 				.foregroundStyle(chartBackgroundColor).symbolSize(256)
 			PointMark(x: .value("Hour", interpolated.hour), y: .value("Calories", interpolated.calories))
@@ -310,7 +367,8 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var todayPoint: some ChartContent {
-		if let last = todayHourlyData.last {
+		// Only show if data time is within chart bounds
+		if let last = todayHourlyData.last, dataTime >= chartStartDate {
 			// Use Data Time for x-position to align with average point and data time line
 			PointMark(x: .value("Hour", dataTime), y: .value("Calories", last.calories)).foregroundStyle(
 				chartBackgroundColor
@@ -346,10 +404,13 @@ struct EnergyChartView: View {
 
 	@ChartContentBuilder
 	private var dataTimeLine: some ChartContent {
-		RuleMark(x: .value("Now", dataTime))
-			.foregroundStyle(Color("NowLineColor"))
-			.lineStyle(StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round, lineJoin: .round))
-			.opacity(widgetRenderingMode.tertiaryOpacity)
+		// Only show if data time is within chart bounds
+		if dataTime >= chartStartDate {
+			RuleMark(x: .value("Now", dataTime))
+				.foregroundStyle(Color("NowLineColor"))
+				.lineStyle(StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round, lineJoin: .round))
+				.opacity(widgetRenderingMode.tertiaryOpacity)
+		}
 	}
 
 	var body: some View {
@@ -360,6 +421,9 @@ struct EnergyChartView: View {
 
 			VStack(spacing: 0) {
 				// Chart with flexible height
+				let startOfDay = calendar.startOfDay(for: Date())
+				let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
 				Chart {
 					dataTimeLine
 					goalLine
@@ -370,33 +434,36 @@ struct EnergyChartView: View {
 					todayPoint
 				}
 				.frame(maxHeight: .infinity)
-				.chartXScale(
-					domain: Calendar.current.startOfDay(for: Date())...Calendar.current.date(
-						byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
-				)
+				.chartXScale(domain: chartStartDate...endOfDay)
 				.chartYScale(domain: 0...maxValue)
 				.chartXAxis {
-					let startOfDay = calendar.startOfDay(for: Date())
-					let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+					let dataTimeVisible = dataTime >= chartStartDate
 					let collisions = calculateLabelCollisions(
-						chartWidth: chartWidth, dataTime: dataTime)
+						chartWidth: chartWidth, dataTime: dataTime,
+						chartStartHour: chartStartHour)
 
 					// Hourly tick marks
 					AxisMarks(values: .stride(by: .hour, count: 1)) { value in
 						if let date = value.as(Date.self) {
 							hourlyTickMark(
-								for: date, startOfDay: startOfDay, endOfDay: endOfDay,
-								collisions: collisions, dataTime: dataTime)
+								for: date, startOfDay: chartStartDate,
+								endOfDay: endOfDay,
+								collisions: collisions, dataTime: dataTime,
+								dataTimeVisible: dataTimeVisible)
 						}
 					}
 
 					// Data Time tick mark (matches labeled hour styling)
-					AxisMarks(values: [dataTime]) { _ in
-						AxisTick(
-							centered: true, length: 6,
-							stroke: StrokeStyle(lineWidth: lineWidth / 2, lineCap: .round)
-						)
-						.offset(CGSize(width: 0, height: 8))
+					// Only show if data time is within chart bounds
+					if dataTimeVisible {
+						AxisMarks(values: [dataTime]) { _ in
+							AxisTick(
+								centered: true, length: 6,
+								stroke: StrokeStyle(
+									lineWidth: lineWidth / 2, lineCap: .round)
+							)
+							.offset(CGSize(width: 0, height: 8))
+						}
 					}
 				}
 				.chartYAxis {
@@ -405,7 +472,8 @@ struct EnergyChartView: View {
 
 				// X-axis labels below chart (fixed height)
 				ChartXAxisLabels(
-					chartWidth: chartWidth, dataTime: dataTime, labelFont: labelFont
+					chartWidth: chartWidth, dataTime: dataTime, labelFont: labelFont,
+					chartStartHour: chartStartHour
 				)
 				.padding(.top, 8)
 			}

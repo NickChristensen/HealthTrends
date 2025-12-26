@@ -769,7 +769,8 @@ struct DailyActiveEnergyWidgetEntryView: View {
 			averageHourlyData: entry.averageHourlyData,
 			moveGoal: entry.moveGoal,
 			averageTotal: entry.averageTotal,
-			dataTime: entry.date
+			dataTime: entry.date,
+			chartStartHour: entry.configuration.chartStartHour.rawValue
 		)
 	}
 }
