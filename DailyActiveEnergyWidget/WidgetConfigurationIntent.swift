@@ -20,27 +20,6 @@ struct EnergyWidgetConfigurationIntent: WidgetConfigurationIntent {
 
 	@Parameter(title: "Chart start time", default: .midnight)
 	var chartStartHour: ChartStartHour
-
-	// MARK: Behavior
-	@Parameter(title: "Tapping", default: .refresh)
-	var tapAction: TapActionOption
-}
-
-/// Options for what happens when the widget is tapped
-enum TapActionOption: String, AppEnum {
-	case refresh = "Refreshes data"
-	case openApp = "Opens Health Trends"
-
-	static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Tapping")
-
-	static var caseDisplayRepresentations: [TapActionOption: DisplayRepresentation] = [
-		.refresh: DisplayRepresentation(
-			title: "Refreshes data"
-		),
-		.openApp: DisplayRepresentation(
-			title: "Opens Health Trends"
-		),
-	]
 }
 
 /// Options for the chart X-axis start time (12 AM through 12 PM)

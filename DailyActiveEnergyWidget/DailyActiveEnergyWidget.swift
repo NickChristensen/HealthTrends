@@ -760,20 +760,16 @@ struct DailyActiveEnergyWidgetEntryView: View {
 	var entry: EnergyWidgetProvider.Entry
 
 	var body: some View {
-		// Show unauthorized view if not authorized
 		if !entry.isAuthorized {
+			// Unauthorized: tap opens app for HealthKit authorization
 			WidgetUnauthorizedView()
 				.widgetURL(URL(string: "healthtrends://"))
-		} else if entry.configuration.tapAction == .refresh {
-			// Tap to refresh - use AppIntent button
+		} else {
+			// Authorized: tap refreshes widget data
 			Button(intent: RefreshWidgetIntent()) {
 				contentView
 			}
 			.buttonStyle(.plain)
-		} else {
-			// Tap to open app - use default widgetURL behavior
-			contentView
-				.widgetURL(URL(string: "healthtrends://"))
 		}
 	}
 
