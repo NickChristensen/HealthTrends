@@ -14,6 +14,7 @@ struct EnergyTrendView: View {
 	let averageTotal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 	let chartStartHour: Int  // Hour to start the chart X-axis (0-12)
+	let accentColor: Color  // Dynamic accent color from widget configuration
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
@@ -30,9 +31,9 @@ struct EnergyTrendView: View {
 
 	private var todayStatistic: some View {
 		HeaderStatistic { circle in
-			circle.fill(Color("AccentColor"))
+			circle.fill(accentColor)
 		} label: {
-			Text("Today").foregroundStyle(Color("AccentColor"))
+			Text("Today").foregroundStyle(accentColor)
 		} statistic: { format in
 			format(todayTotal)
 		}
@@ -53,9 +54,9 @@ struct EnergyTrendView: View {
 	private var projectedStatistic: some View {
 		HeaderStatistic { circle in
 			circle.strokeBorder(
-				Color("AccentColor"), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
+				accentColor, style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
 		} label: {
-			Text("Projected").foregroundStyle(Color("AccentColor"))
+			Text("Projected").foregroundStyle(accentColor)
 		} statistic: { format in
 			format(projectedTotal)
 		}
@@ -83,7 +84,8 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					dataTime: dataTime,
-					chartStartHour: chartStartHour
+					chartStartHour: chartStartHour,
+					accentColor: accentColor
 				)
 				.frame(maxWidth: .infinity)
 			}
@@ -109,7 +111,8 @@ struct EnergyTrendView: View {
 					averageHourlyData: averageHourlyData,
 					moveGoal: moveGoal,
 					dataTime: dataTime,
-					chartStartHour: chartStartHour
+					chartStartHour: chartStartHour,
+					accentColor: accentColor
 				)
 				.frame(maxHeight: .infinity)
 			}

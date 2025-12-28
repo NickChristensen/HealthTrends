@@ -786,7 +786,8 @@ struct DailyActiveEnergyWidgetEntryView: View {
 			moveGoal: entry.moveGoal,
 			averageTotal: entry.averageTotal,
 			dataTime: entry.date,
-			chartStartHour: entry.configuration.chartStartHour.rawValue
+			chartStartHour: entry.configuration.chartStartHour.rawValue,
+			accentColor: entry.configuration.accentColor.color
 		)
 	}
 }

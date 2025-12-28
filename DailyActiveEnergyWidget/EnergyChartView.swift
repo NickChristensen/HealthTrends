@@ -146,6 +146,7 @@ struct EnergyChartView: View {
 	let moveGoal: Double
 	let dataTime: Date  // Timestamp of most recent HealthKit data sample
 	let chartStartHour: Int  // Hour to start the chart X-axis (0-12)
+	let accentColor: Color  // Dynamic accent color from widget configuration
 
 	@Environment(\.widgetRenderingMode) var widgetRenderingMode
 	@Environment(\.widgetFamily) var widgetFamily
@@ -328,7 +329,7 @@ struct EnergyChartView: View {
 				x: .value("Hour", data.hour), y: .value("Calories", data.calories),
 				series: .value("Series", "Today")
 			)
-			.foregroundStyle(Color("AccentColor"))
+			.foregroundStyle(accentColor)
 			.lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
 			.opacity(widgetRenderingMode.primaryOpacity)
 		}
@@ -342,7 +343,7 @@ struct EnergyChartView: View {
 				y: .value("Calories", data.calories),
 				series: .value("Series", "Projected")
 			)
-			.foregroundStyle(Color("AccentColor"))
+			.foregroundStyle(accentColor)
 			.lineStyle(
 				StrokeStyle(
 					lineWidth: lineWidth, lineJoin: .round,
@@ -374,7 +375,7 @@ struct EnergyChartView: View {
 				chartBackgroundColor
 			).symbolSize(256)
 			PointMark(x: .value("Hour", dataTime), y: .value("Calories", last.calories)).foregroundStyle(
-				Color("AccentColor")
+				accentColor
 			).symbolSize(100).opacity(widgetRenderingMode.primaryOpacity)
 		}
 	}
