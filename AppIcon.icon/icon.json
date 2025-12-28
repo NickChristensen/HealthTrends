@@ -1,28 +1,35 @@
 {
-  "fill" : "system-light",
+  "color-space-for-untagged-svg-colors" : "display-p3",
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "display-p3:1.00000,1.00000,1.00000,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "display-p3:0.10980,0.10980,0.11765,1.00000"
+      }
+    }
+  ],
   "groups" : [
     {
       "blend-mode" : "normal",
-      "blur-material-specializations" : [
-        {
-          "value" : null
-        },
-        {
-          "appearance" : "tinted",
-          "value" : 0.5
-        }
-      ],
-      "hidden-specializations" : [
-        {
-          "appearance" : "light",
-          "value" : true
-        }
-      ],
+      "blur-material" : null,
       "layers" : [
         {
           "fill-specializations" : [
             {
-              "value" : "none"
+              "value" : {
+                "solid" : "display-p3:1.00000,0.34100,0.08200,1.00000"
+              }
+            },
+            {
+              "appearance" : "light",
+              "value" : {
+                "solid" : "display-p3:1.00000,0.28600,0.00000,1.00000"
+              }
             },
             {
               "appearance" : "tinted",
@@ -32,38 +39,35 @@
             }
           ],
           "glass" : true,
-          "image-name" : "4 – Layer Dark.svg",
-          "name" : "4 – Layer Dark"
+          "image-name" : "3 Today.svg",
+          "name" : "3 Today"
         },
         {
-          "image-name" : "3 – Layer Dark.svg",
-          "name" : "3 – Layer Dark"
-        },
-        {
-          "image-name" : "2 – Layer Dark.svg",
-          "name" : "2 – Layer Dark"
+          "fill" : {
+            "solid" : "srgb:0.55686,0.55686,0.57255,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "2 Average.svg",
+          "name" : "2 Average"
         },
         {
           "blend-mode" : "normal",
-          "fill" : {
-            "linear-gradient" : [
-              "gray:0.24750,1.00000",
-              "gray:0.14704,1.00000"
-            ],
-            "orientation" : {
-              "start" : {
-                "x" : 0.5,
-                "y" : 0
-              },
-              "stop" : {
-                "x" : 0.5,
-                "y" : 0.7
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "srgb:0.22745,0.22745,0.23529,1.00000"
+              }
+            },
+            {
+              "appearance" : "light",
+              "value" : {
+                "solid" : "srgb:0.89804,0.89804,0.91765,1.00000"
               }
             }
-          },
+          ],
           "glass" : true,
-          "image-name" : "1 – Layer Dark.svg",
-          "name" : "1 – Layer Dark"
+          "image-name" : "1 Now.svg",
+          "name" : "1 Now"
         }
       ],
       "lighting" : "individual",
@@ -102,104 +106,6 @@
           "appearance" : "tinted",
           "value" : {
             "enabled" : true,
-            "value" : 0.5
-          }
-        }
-      ]
-    },
-    {
-      "blur-material-specializations" : [
-        {
-          "value" : 0.5
-        },
-        {
-          "appearance" : "light",
-          "value" : null
-        }
-      ],
-      "hidden-specializations" : [
-        {
-          "value" : false
-        },
-        {
-          "appearance" : "dark",
-          "value" : true
-        },
-        {
-          "appearance" : "tinted",
-          "value" : true
-        }
-      ],
-      "layers" : [
-        {
-          "fill" : "none",
-          "image-name" : "4 – Layer Light.svg",
-          "name" : "4 – Layer Light"
-        },
-        {
-          "image-name" : "3 – Layer Light.svg",
-          "name" : "3 – Layer Light"
-        },
-        {
-          "image-name" : "2 – Layer Light.svg",
-          "name" : "2 – Layer Light"
-        },
-        {
-          "fill" : {
-            "linear-gradient" : [
-              "gray:0.94856,1.00000",
-              "gray:0.84956,1.00000"
-            ],
-            "orientation" : {
-              "start" : {
-                "x" : 0.5,
-                "y" : 0
-              },
-              "stop" : {
-                "x" : 0.5,
-                "y" : 0.7
-              }
-            }
-          },
-          "image-name" : "1 – Layer Light.svg",
-          "name" : "1 – Layer Light"
-        }
-      ],
-      "shadow-specializations" : [
-        {
-          "value" : {
-            "kind" : "neutral",
-            "opacity" : 0.5
-          }
-        },
-        {
-          "appearance" : "light",
-          "value" : {
-            "kind" : "none",
-            "opacity" : 0.5
-          }
-        }
-      ],
-      "specular-specializations" : [
-        {
-          "value" : true
-        },
-        {
-          "appearance" : "light",
-          "value" : false
-        }
-      ],
-      "translucency-specializations" : [
-        {
-          "value" : {
-            "enabled" : true,
-            "value" : 0.5
-          }
-        },
-        {
-          "appearance" : "light",
-          "value" : {
-            "enabled" : false,
             "value" : 0.5
           }
         }
