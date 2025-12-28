@@ -207,28 +207,44 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	/// Normalize timestamps in hourly data to match a target date
 	/// Preserves hour/minute components while updating the date
 	/// Used to align cached historical patterns with the current day's timeline
-	/// Filters out next-day midnight endpoint to prevent duplicate midnight entries
+	/// Preserves end-of-day midnight endpoint for projection lines
 	private func normalizeTimestamps(_ data: [HourlyEnergyData], to targetDate: Date) -> [HourlyEnergyData] {
 		let calendar = Calendar.current
 		let targetStartOfDay = calendar.startOfDay(for: targetDate)
+
+		guard let targetEndOfDay = calendar.date(byAdding: .day, value: 1, to: targetStartOfDay) else {
+			return []
+		}
 
 		return data.compactMap { dataPoint in
 			let hour = calendar.component(.hour, from: dataPoint.hour)
 			let minute = calendar.component(.minute, from: dataPoint.hour)
 
-			// Skip next-day midnight point (hour=0, minute=0, calories > 0)
-			// This represents the projected total endpoint which becomes duplicate after normalization
-			// The explicit start-of-day midnight (0 cal) is preserved
-			if hour == 0 && minute == 0 && dataPoint.calories > 0 {
-				return nil
+			// Special handling for midnight (hour 0) points:
+			// - Start-of-day midnight (today 00:00, calories=0): Normalize to today
+			// - End-of-day midnight (tomorrow 00:00, calories>0): Preserve as tomorrow for projection endpoint
+			if hour == 0 && minute == 0 {
+				if dataPoint.calories > 0 {
+					// This is the end-of-day projection endpoint (tomorrow's midnight)
+					// Keep it at tomorrow's date - do NOT normalize to today
+					return HourlyEnergyData(hour: targetEndOfDay, calories: dataPoint.calories)
+				} else {
+					// This is start-of-day midnight (0 calories) - normalize to today
+					return HourlyEnergyData(hour: targetStartOfDay, calories: 0)
+				}
 			}
 
-			let normalizedDate = calendar.date(
-				bySettingHour: hour,
-				minute: minute,
-				second: 0,
-				of: targetStartOfDay
-			)!
+			// For all other hours, normalize to target date
+			guard
+				let normalizedDate = calendar.date(
+					bySettingHour: hour,
+					minute: minute,
+					second: 0,
+					of: targetStartOfDay
+				)
+			else {
+				return nil
+			}
 
 			return HourlyEnergyData(hour: normalizedDate, calories: dataPoint.calories)
 		}

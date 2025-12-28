@@ -187,6 +187,12 @@ final class MockHealthKitQueryService: HealthDataProvider {
 			}
 		}
 
+		// Add end-of-day midnight endpoint (tomorrow's hour 0 with projected total)
+		// This represents where the projection line extends to
+		if let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) {
+			hourlyData.append(HourlyEnergyData(hour: endOfDay, calories: projectedTotal))
+		}
+
 		return (projectedTotal, hourlyData)
 	}
 }
