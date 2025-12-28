@@ -345,8 +345,8 @@ struct EnergyChartView: View {
 			.foregroundStyle(Color("AccentColor"))
 			.lineStyle(
 				StrokeStyle(
-					lineWidth: lineWidth, lineCap: .round, lineJoin: .round,
-					dash: [lineWidth, lineWidth * 1.5])
+					lineWidth: lineWidth, lineJoin: .round,
+					dash: [lineWidth * 2, lineWidth * 0.75], dashPhase: lineWidth)
 			)
 			.opacity(widgetRenderingMode.primaryOpacity)
 		}
