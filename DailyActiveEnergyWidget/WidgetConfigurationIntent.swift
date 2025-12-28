@@ -6,6 +6,7 @@
 //
 
 import AppIntents
+import SwiftUI
 import WidgetKit
 
 /// Configuration for the Daily Active Energy Widget
@@ -13,23 +14,28 @@ struct EnergyWidgetConfigurationIntent: WidgetConfigurationIntent {
 	static var title: LocalizedStringResource = "Widget Configuration"
 	static var description: IntentDescription = "Configure widget display and behavior"
 
-	@Parameter(title: "Chart Start Time", default: .midnight)
+	// MARK: Appearance
+	@Parameter(title: "Accent color", default: .activityOrange)
+	var accentColor: AccentColorOption
+
+	@Parameter(title: "Chart start time", default: .midnight)
 	var chartStartHour: ChartStartHour
 
+	// MARK: Behavior
 	@Parameter(title: "Tapping", default: .refresh)
 	var tapAction: TapActionOption
 }
 
 /// Options for what happens when the widget is tapped
 enum TapActionOption: String, AppEnum {
-	case refresh = "Refreshes Data"
+	case refresh = "Refreshes data"
 	case openApp = "Opens Health Trends"
 
 	static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Tapping")
 
 	static var caseDisplayRepresentations: [TapActionOption: DisplayRepresentation] = [
 		.refresh: DisplayRepresentation(
-			title: "Refreshes Data"
+			title: "Refreshes data"
 		),
 		.openApp: DisplayRepresentation(
 			title: "Opens Health Trends"
@@ -70,4 +76,57 @@ enum ChartStartHour: Int, AppEnum, CaseIterable {
 		.elevenAM: DisplayRepresentation(title: "11:00 AM"),
 		.noon: DisplayRepresentation(title: "12:00 PM"),
 	]
+}
+
+/// Options for widget accent color
+enum AccentColorOption: String, AppEnum, CaseIterable {
+	case activityOrange = "Activity orange"
+	case blue = "Blue"
+	case cyan = "Cyan"
+	case green = "Green"
+	case indigo = "Indigo"
+	case mint = "Mint"
+	case orange = "Orange"
+	case pink = "Pink"
+	case purple = "Purple"
+	case red = "Red"
+	case teal = "Teal"
+	case yellow = "Yellow"
+
+	static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Accent Color")
+
+	static var caseDisplayRepresentations: [AccentColorOption: DisplayRepresentation] = [
+		.activityOrange: DisplayRepresentation(title: "Activity orange"),
+		.blue: DisplayRepresentation(title: "Blue"),
+		.cyan: DisplayRepresentation(title: "Cyan"),
+		.green: DisplayRepresentation(title: "Green"),
+		.indigo: DisplayRepresentation(title: "Indigo"),
+		.mint: DisplayRepresentation(title: "Mint"),
+		.orange: DisplayRepresentation(title: "Orange"),
+		.pink: DisplayRepresentation(title: "Pink"),
+		.purple: DisplayRepresentation(title: "Purple"),
+		.red: DisplayRepresentation(title: "Red"),
+		.teal: DisplayRepresentation(title: "Teal"),
+		.yellow: DisplayRepresentation(title: "Yellow"),
+	]
+}
+
+extension AccentColorOption {
+	/// Convert enum case to SwiftUI Color
+	var color: Color {
+		switch self {
+		case .activityOrange: return Color("AccentColor")
+		case .blue: return .blue
+		case .cyan: return .cyan
+		case .green: return .green
+		case .indigo: return .indigo
+		case .mint: return .mint
+		case .orange: return .orange
+		case .pink: return .pink
+		case .purple: return .purple
+		case .red: return .red
+		case .teal: return .teal
+		case .yellow: return .yellow
+		}
+	}
 }
