@@ -54,7 +54,7 @@ struct EnergyTrendView: View {
 	private var projectedStatistic: some View {
 		HeaderStatistic { circle in
 			circle.strokeBorder(
-				accentColor, style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 2]))
+				accentColor, style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
 		} label: {
 			Text("Projected").foregroundStyle(accentColor)
 		} statistic: { format in
