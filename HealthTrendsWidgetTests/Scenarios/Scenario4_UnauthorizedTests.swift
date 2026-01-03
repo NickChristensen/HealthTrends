@@ -28,7 +28,9 @@ struct UnauthorizedTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 		let config = EnergyWidgetConfigurationIntent()
 
@@ -74,7 +76,9 @@ struct UnauthorizedTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -106,7 +110,9 @@ struct UnauthorizedTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -135,7 +141,9 @@ struct UnauthorizedTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry (HealthKit fails, no cache)

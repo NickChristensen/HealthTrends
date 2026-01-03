@@ -6,7 +6,7 @@ import HealthKit
 /// Mock implementation of HealthDataProvider for testing
 /// Returns deterministic data without requiring actual HealthKit access
 /// Conforms to HealthDataProvider protocol using composition instead of inheritance
-final class MockHealthKitQueryService: HealthDataProvider {
+final class MockHealthKitQueryService: HealthDataProvider, @unchecked Sendable {
 	private var mockSamples: [HKQuantitySample] = []
 	private var mockMoveGoal: Double = 0
 	private var mockAuthorized: Bool = true
@@ -74,8 +74,6 @@ final class MockHealthKitQueryService: HealthDataProvider {
 		// Filter samples to only today
 		let calendar = Calendar.current
 		let now = mockCurrentTime
-		let startOfToday = calendar.startOfDay(for: now)
-
 		let todaySamples = mockSamples.filter { sample in
 			calendar.isDate(sample.startDate, inSameDayAs: now)
 		}
@@ -159,7 +157,7 @@ final class MockHealthKitQueryService: HealthDataProvider {
 		// Calculate average cumulative hourly pattern
 		var hourlyPatterns: [[Double]] = Array(repeating: [], count: 24)
 
-		for (dayStart, daySamples) in samplesByDay {
+		for (_, daySamples) in samplesByDay {
 			var cumulativeForDay: Double = 0
 			let sortedSamples = daySamples.sorted { $0.endDate < $1.endDate }
 

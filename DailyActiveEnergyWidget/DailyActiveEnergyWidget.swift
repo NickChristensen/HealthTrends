@@ -110,23 +110,37 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private let healthKitService: HealthDataProvider
 	private let averageCacheManager: AverageDataCacheManager
 	private let todayCacheManager: TodayEnergyCacheManager
+	private let projectionStateManager: ProjectionStateCacheManager
+	private let projectionNotificationHandler: ProjectionNotificationHandler
 
 	// Production initializer (used by widget system)
 	init() {
 		self.healthKitService = HealthKitQueryService()
 		self.averageCacheManager = AverageDataCacheManager()
 		self.todayCacheManager = TodayEnergyCacheManager.shared
+		self.projectionStateManager = ProjectionStateCacheManager.shared
+		self.projectionNotificationHandler = ProjectionNotificationHandler(
+			projectionStateManager: projectionStateManager
+		)
 	}
 
 	// Test initializer with dependency injection for all dependencies
 	init(
 		healthKitService: HealthDataProvider,
 		averageCacheManager: AverageDataCacheManager = AverageDataCacheManager(),
-		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared
+		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared,
+		notificationScheduler: NotificationScheduler = UserNotificationScheduler(),
+		projectionStateManager: ProjectionStateCacheManager = ProjectionStateCacheManager.shared,
+		projectionNotificationHandler: ProjectionNotificationHandler? = nil
 	) {
 		self.healthKitService = healthKitService
 		self.averageCacheManager = averageCacheManager
 		self.todayCacheManager = todayCacheManager
+		self.projectionStateManager = projectionStateManager
+		self.projectionNotificationHandler = projectionNotificationHandler ?? ProjectionNotificationHandler(
+			notificationScheduler: notificationScheduler,
+			projectionStateManager: projectionStateManager
+		)
 	}
 
 	func placeholder(in context: Context) -> EnergyWidgetEntry {
@@ -177,7 +191,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		let timeline: Timeline<EnergyWidgetEntry>
 
-		if midnight < next15MinUpdate {
+		if midnight <= next15MinUpdate {
 			// Midnight is coming up - create zero-state entry with NEW weekday's average data
 			let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
 			Self.logger.info("Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
@@ -281,6 +295,11 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let cachedData = averageCache?.toHourlyEnergyData() ?? []
 		let averageHourlyData = normalizeTimestamps(cachedData, to: date)
 		let projectedTotal = averageCache?.projectedTotal ?? 0
+
+		// Clear projection state at midnight to prevent false notifications
+		// This prevents stale yesterday's projection from triggering "Falling Behind" alert
+		// when the new day's low projection is compared against yesterday's final value
+		projectionNotificationHandler.clearProjectionStateForNewDay()
 
 		return EnergyWidgetEntry(
 			date: date,
@@ -645,6 +664,14 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			Self.logger.warning("   Last data point: \(todayData.last!.hour, privacy: .public)")
 		}
 		let averageAtCurrentHour = averageData.interpolatedValue(at: effectiveDate) ?? 0
+
+		// Check for projection goal crossing and schedule notification if needed
+		let currentProjected = todayTotal + (projectedTotal - averageAtCurrentHour)
+		await projectionNotificationHandler.handleGoalCrossing(
+			currentProjected: currentProjected,
+			moveGoal: moveGoal,
+			referenceDate: effectiveDate
+		)
 
 		// Log timestamp details for debugging
 		Self.logger.info("Widget timeline entry created:")

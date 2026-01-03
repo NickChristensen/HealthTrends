@@ -16,7 +16,7 @@ struct MidnightEndpointTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
@@ -25,7 +25,9 @@ struct MidnightEndpointTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -90,7 +92,7 @@ struct MidnightEndpointTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario1_normalOperation()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario1_normalOperation()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
@@ -99,7 +101,9 @@ struct MidnightEndpointTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry

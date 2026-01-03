@@ -54,6 +54,10 @@ final class HealthKitManager {
 		// If authorized, populate all caches for widget support
 		if isAuthorized {
 			print("✅ Authorization verified - populating caches")
+
+			// Request notification permissions after HealthKit authorization
+			await requestNotificationPermissions()
+
 			do {
 				try await populateTodayCache()
 				await populateWeekdayCaches()
@@ -63,6 +67,21 @@ final class HealthKitManager {
 				// User might have no data yet, or device might be locked
 				print("⚠️ Cache population failed (non-fatal): \(error.localizedDescription)")
 			}
+		}
+	}
+
+	/// Request notification permissions for goal crossing alerts
+	private func requestNotificationPermissions() async {
+		let permissionProvider = UserNotificationPermissionProvider()
+		do {
+			let granted = try await permissionProvider.requestPermission()
+			if granted {
+				print("✅ Notification permissions granted")
+			} else {
+				print("⚠️ Notification permissions denied - goal crossing alerts disabled")
+			}
+		} catch {
+			print("❌ Failed to request notification permissions: \(error.localizedDescription)")
 		}
 	}
 

@@ -32,7 +32,9 @@ struct TodayOnlyTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry (today succeeds, average fails)
@@ -73,7 +75,9 @@ struct TodayOnlyTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
