@@ -11,5 +11,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "axiom@axiom-marketplace": true
   }
 }
