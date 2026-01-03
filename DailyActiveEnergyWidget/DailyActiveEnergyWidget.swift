@@ -110,23 +110,31 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private let healthKitService: HealthDataProvider
 	private let averageCacheManager: AverageDataCacheManager
 	private let todayCacheManager: TodayEnergyCacheManager
+	private let notificationScheduler: NotificationScheduler
+	private let projectionStateManager: ProjectionStateCacheManager
 
 	// Production initializer (used by widget system)
 	init() {
 		self.healthKitService = HealthKitQueryService()
 		self.averageCacheManager = AverageDataCacheManager()
 		self.todayCacheManager = TodayEnergyCacheManager.shared
+		self.notificationScheduler = UserNotificationScheduler()
+		self.projectionStateManager = ProjectionStateCacheManager.shared
 	}
 
 	// Test initializer with dependency injection for all dependencies
 	init(
 		healthKitService: HealthDataProvider,
 		averageCacheManager: AverageDataCacheManager = AverageDataCacheManager(),
-		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared
+		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared,
+		notificationScheduler: NotificationScheduler = UserNotificationScheduler(),
+		projectionStateManager: ProjectionStateCacheManager = ProjectionStateCacheManager.shared
 	) {
 		self.healthKitService = healthKitService
 		self.averageCacheManager = averageCacheManager
 		self.todayCacheManager = todayCacheManager
+		self.notificationScheduler = notificationScheduler
+		self.projectionStateManager = projectionStateManager
 	}
 
 	func placeholder(in context: Context) -> EnergyWidgetEntry {
@@ -281,6 +289,12 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let cachedData = averageCache?.toHourlyEnergyData() ?? []
 		let averageHourlyData = normalizeTimestamps(cachedData, to: date)
 		let projectedTotal = averageCache?.projectedTotal ?? 0
+
+		// Clear projection state at midnight to prevent false notifications
+		// This prevents stale yesterday's projection from triggering "Falling Behind" alert
+		// when the new day's low projection is compared against yesterday's final value
+		projectionStateManager.clearState()
+		Self.logger.info("Cleared projection state at midnight - new day baseline")
 
 		return EnergyWidgetEntry(
 			date: date,
@@ -646,6 +660,13 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		}
 		let averageAtCurrentHour = averageData.interpolatedValue(at: effectiveDate) ?? 0
 
+		// Check for projection goal crossing and schedule notification if needed
+		let currentProjected = todayTotal + (projectedTotal - averageAtCurrentHour)
+		await detectAndNotifyGoalCrossing(
+			currentProjected: currentProjected,
+			moveGoal: moveGoal
+		)
+
 		// Log timestamp details for debugging
 		Self.logger.info("Widget timeline entry created:")
 		Self.logger.info("   Query time: \(date, privacy: .public)")
@@ -722,6 +743,67 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			return sharedData.moveGoal
 		} catch {
 			return 800  // Default fallback
+		}
+	}
+
+	/// Detect goal crossing and schedule notification
+	private func detectAndNotifyGoalCrossing(
+		currentProjected: Double,
+		moveGoal: Double
+	) async {
+		let detector = ProjectionGoalCrossingDetector()
+
+		// Read previous state
+		let previousProjected: Double?
+		do {
+			previousProjected = try projectionStateManager.readState().projectedTotal
+		} catch ProjectionStateCacheError.fileNotFound {
+			// First run - no previous state exists yet
+			previousProjected = nil
+		} catch {
+			Self.logger.error(
+				"Failed to read projection state: \(error.localizedDescription, privacy: .public)")
+			previousProjected = nil
+		}
+
+		// Detect crossing
+		guard
+			let event = detector.detectCrossing(
+				previousProjected: previousProjected,
+				currentProjected: currentProjected,
+				moveGoal: moveGoal
+			)
+		else {
+			// No crossing - just update state for next check
+			do {
+				try projectionStateManager.writeState(ProjectionState(projectedTotal: currentProjected))
+			} catch {
+				Self.logger.error(
+					"Failed to persist projection state: \(error.localizedDescription, privacy: .public)"
+				)
+				Self.logger.error("Next crossing detection may be inaccurate")
+			}
+			return
+		}
+
+		// Crossing detected - schedule notification
+		Self.logger.info("Goal crossing detected: \(String(describing: event.direction))")
+		do {
+			try await notificationScheduler.scheduleNotification(for: event)
+			Self.logger.info("✅ Notification scheduled successfully")
+		} catch {
+			Self.logger.error(
+				"❌ Failed to schedule notification: \(error.localizedDescription, privacy: .public)")
+		}
+
+		// Update state after notification
+		do {
+			try projectionStateManager.writeState(ProjectionState(projectedTotal: currentProjected))
+		} catch {
+			Self.logger.error(
+				"Failed to persist projection state after notification: \(error.localizedDescription, privacy: .public)"
+			)
+			Self.logger.error("Next crossing detection may be inaccurate")
 		}
 	}
 }
