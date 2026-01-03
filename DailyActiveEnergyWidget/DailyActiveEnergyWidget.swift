@@ -9,7 +9,6 @@ import AppIntents
 import HealthKit
 import HealthTrendsShared
 import SwiftUI
-@preconcurrency import UserNotifications
 import WidgetKit
 import os
 
@@ -111,16 +110,18 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	private let healthKitService: HealthDataProvider
 	private let averageCacheManager: AverageDataCacheManager
 	private let todayCacheManager: TodayEnergyCacheManager
-	private let notificationScheduler: NotificationScheduler
 	private let projectionStateManager: ProjectionStateCacheManager
+	private let projectionNotificationHandler: ProjectionNotificationHandler
 
 	// Production initializer (used by widget system)
 	init() {
 		self.healthKitService = HealthKitQueryService()
 		self.averageCacheManager = AverageDataCacheManager()
 		self.todayCacheManager = TodayEnergyCacheManager.shared
-		self.notificationScheduler = UserNotificationScheduler()
 		self.projectionStateManager = ProjectionStateCacheManager.shared
+		self.projectionNotificationHandler = ProjectionNotificationHandler(
+			projectionStateManager: projectionStateManager
+		)
 	}
 
 	// Test initializer with dependency injection for all dependencies
@@ -129,13 +130,17 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		averageCacheManager: AverageDataCacheManager = AverageDataCacheManager(),
 		todayCacheManager: TodayEnergyCacheManager = TodayEnergyCacheManager.shared,
 		notificationScheduler: NotificationScheduler = UserNotificationScheduler(),
-		projectionStateManager: ProjectionStateCacheManager = ProjectionStateCacheManager.shared
+		projectionStateManager: ProjectionStateCacheManager = ProjectionStateCacheManager.shared,
+		projectionNotificationHandler: ProjectionNotificationHandler? = nil
 	) {
 		self.healthKitService = healthKitService
 		self.averageCacheManager = averageCacheManager
 		self.todayCacheManager = todayCacheManager
-		self.notificationScheduler = notificationScheduler
 		self.projectionStateManager = projectionStateManager
+		self.projectionNotificationHandler = projectionNotificationHandler ?? ProjectionNotificationHandler(
+			notificationScheduler: notificationScheduler,
+			projectionStateManager: projectionStateManager
+		)
 	}
 
 	func placeholder(in context: Context) -> EnergyWidgetEntry {
@@ -294,8 +299,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		// Clear projection state at midnight to prevent false notifications
 		// This prevents stale yesterday's projection from triggering "Falling Behind" alert
 		// when the new day's low projection is compared against yesterday's final value
-		projectionStateManager.clearState()
-		Self.logger.info("Cleared projection state at midnight - new day baseline")
+		projectionNotificationHandler.clearProjectionStateForNewDay()
 
 		return EnergyWidgetEntry(
 			date: date,
@@ -663,7 +667,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		// Check for projection goal crossing and schedule notification if needed
 		let currentProjected = todayTotal + (projectedTotal - averageAtCurrentHour)
-		await detectAndNotifyGoalCrossing(
+		await projectionNotificationHandler.handleGoalCrossing(
 			currentProjected: currentProjected,
 			moveGoal: moveGoal,
 			referenceDate: effectiveDate
@@ -745,141 +749,6 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 			return sharedData.moveGoal
 		} catch {
 			return 800  // Default fallback
-		}
-	}
-
-	/// Detect goal crossing and schedule notification
-	private func detectAndNotifyGoalCrossing(
-		currentProjected: Double,
-		moveGoal: Double,
-		referenceDate: Date
-	) async {
-		let detector = ProjectionGoalCrossingDetector()
-
-		// Read previous state
-		let previousProjected: Double?
-		do {
-			let state = try projectionStateManager.readState()
-			let calendar = Calendar.current
-			if calendar.isDate(state.timestamp, inSameDayAs: referenceDate) {
-				previousProjected = state.projectedTotal
-			} else {
-				projectionStateManager.clearState()
-				previousProjected = nil
-				Self.logger.info("Cleared projection state from previous day")
-			}
-		} catch ProjectionStateCacheError.fileNotFound {
-			// First run - no previous state exists yet
-			previousProjected = nil
-		} catch {
-			Self.logger.error(
-				"Failed to read projection state: \(error.localizedDescription, privacy: .public)")
-			previousProjected = nil
-		}
-
-		// Detect crossing
-		guard
-			let event = detector.detectCrossing(
-				previousProjected: previousProjected,
-				currentProjected: currentProjected,
-				moveGoal: moveGoal
-			)
-		else {
-			// No crossing - just update state for next check
-			do {
-				try projectionStateManager.writeState(ProjectionState(projectedTotal: currentProjected))
-			} catch {
-				Self.logger.error(
-					"Failed to persist projection state: \(error.localizedDescription, privacy: .public)"
-				)
-				Self.logger.error("Next crossing detection may be inaccurate")
-			}
-			return
-		}
-
-		// Crossing detected - schedule notification
-		Self.logger.info("Goal crossing detected: \(String(describing: event.direction))")
-		do {
-			try await notificationScheduler.scheduleNotification(for: event)
-			Self.logger.info("✅ Notification scheduled successfully")
-		} catch {
-			Self.logger.error(
-				"❌ Failed to schedule notification: \(error.localizedDescription, privacy: .public)")
-		}
-
-		// Update state after notification
-		do {
-			try projectionStateManager.writeState(ProjectionState(projectedTotal: currentProjected))
-		} catch {
-			Self.logger.error(
-				"Failed to persist projection state after notification: \(error.localizedDescription, privacy: .public)"
-			)
-			Self.logger.error("Next crossing detection may be inaccurate")
-		}
-	}
-}
-
-// MARK: - Notification Scheduler
-
-/// Concrete notification scheduler using UNUserNotificationCenter
-/// Schedules local notifications for projection goal crossings
-final class UserNotificationScheduler: NotificationScheduler, @unchecked Sendable {
-	private let notificationCenter: UNUserNotificationCenter
-	private static let logger = Logger(
-		subsystem: "com.finelycrafted.HealthTrends",
-		category: "UserNotificationScheduler"
-	)
-
-	init(notificationCenter: UNUserNotificationCenter = .current()) {
-		self.notificationCenter = notificationCenter
-	}
-
-	func scheduleNotification(for event: GoalCrossingEvent) async throws {
-		// Check authorization first
-		let settings = await notificationCenter.notificationSettings()
-		guard settings.authorizationStatus == .authorized else {
-			Self.logger.warning("Notification permission not granted - skipping notification")
-			return
-		}
-
-		// Create content
-		let content = UNMutableNotificationContent()
-		content.title = formatTitle(for: event)
-		content.body = formatBody(for: event)
-		content.sound = .default
-		content.categoryIdentifier = "GOAL_CROSSING"
-
-		// Create request (use constant identifier to replace previous notifications)
-		let request = UNNotificationRequest(
-			identifier: "projection-goal-crossing",
-			content: content,
-			trigger: nil  // Deliver immediately
-		)
-
-		// Schedule
-		try await notificationCenter.add(request)
-		Self.logger.info("Scheduled goal crossing notification: \(String(describing: event.direction))")
-	}
-
-	private func formatTitle(for event: GoalCrossingEvent) -> String {
-		switch event.direction {
-		case .belowToAbove:
-			return "On Track! 🎯"
-		case .aboveToBelow:
-			return "Falling Behind 📉"
-		}
-	}
-
-	private func formatBody(for event: GoalCrossingEvent) -> String {
-		let projected = Int(event.projectedTotal)
-		let goal = Int(event.moveGoal)
-
-		switch event.direction {
-		case .belowToAbove:
-			return
-				"You're now projected to reach your goal! Projected: \(projected) cal / Goal: \(goal) cal"
-		case .aboveToBelow:
-			return "Your pace has slowed. Projected: \(projected) cal / Goal: \(goal) cal"
 		}
 	}
 }
