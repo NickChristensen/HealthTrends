@@ -19,7 +19,7 @@ struct DelayedSyncTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
@@ -28,7 +28,9 @@ struct DelayedSyncTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 		let config = EnergyWidgetConfigurationIntent()
 
@@ -64,7 +66,7 @@ struct DelayedSyncTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario2_delayedSync()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureCurrentTime(currentTime)
@@ -72,7 +74,9 @@ struct DelayedSyncTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -109,7 +113,9 @@ struct DelayedSyncTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -143,7 +149,7 @@ struct DelayedSyncTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
+		let (_, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario2_delayedSync()
 
 		// STEP 1: Generate average cache data (before device locks)
 		// Use scenario 1's samples to build average pattern
@@ -186,7 +192,9 @@ struct DelayedSyncTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 		let config = EnergyWidgetConfigurationIntent()
 

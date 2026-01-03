@@ -1,11 +1,11 @@
 import Foundation
 import HealthTrendsShared
-import UserNotifications
+@preconcurrency import UserNotifications
 import os
 
 /// Concrete notification permission provider using UNUserNotificationCenter
 /// Requests notification permissions from the user in the main app
-final class UserNotificationPermissionProvider: NotificationPermissionProvider, Sendable {
+final class UserNotificationPermissionProvider: NotificationPermissionProvider, @unchecked Sendable {
 	private let notificationCenter: UNUserNotificationCenter
 	private static let logger = Logger(
 		subsystem: "com.finelycrafted.HealthTrends",

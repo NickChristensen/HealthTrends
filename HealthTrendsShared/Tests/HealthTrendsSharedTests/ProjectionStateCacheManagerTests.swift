@@ -4,14 +4,20 @@ import XCTest
 
 final class ProjectionStateCacheManagerTests: XCTestCase {
 	var cacheManager: ProjectionStateCacheManager!
-	let testAppGroup = "group.com.healthtrends.test"
 	let testFileName = "test-projection-state.json"
+	private var tempDirectory: URL?
 
 	override func setUp() {
 		super.setUp()
-		// Use test-specific app group and filename to avoid conflicts
+		let uniqueDirectory = FileManager.default.temporaryDirectory
+			.appendingPathComponent(UUID().uuidString, isDirectory: true)
+		try? FileManager.default.createDirectory(
+			at: uniqueDirectory,
+			withIntermediateDirectories: true
+		)
+		tempDirectory = uniqueDirectory
 		cacheManager = ProjectionStateCacheManager(
-			appGroupIdentifier: testAppGroup,
+			containerURLProvider: { uniqueDirectory },
 			fileName: testFileName
 		)
 		// Clean up any existing test cache
@@ -20,6 +26,10 @@ final class ProjectionStateCacheManagerTests: XCTestCase {
 
 	override func tearDown() {
 		cacheManager.clearState()
+		if let tempDirectory {
+			try? FileManager.default.removeItem(at: tempDirectory)
+		}
+		tempDirectory = nil
 		cacheManager = nil
 		super.tearDown()
 	}

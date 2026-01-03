@@ -5,7 +5,7 @@ import Foundation
 // MARK: - Mock Cache Managers
 
 /// In-memory mock for AverageDataCacheManager that doesn't touch the filesystem
-public final class MockAverageDataCacheManager: AverageDataCacheManager {
+public final class MockAverageDataCacheManager: AverageDataCacheManager, @unchecked Sendable {
 	private var weekdayData: [Weekday: AverageDataCache] = [:]
 	private var refreshFlags: [Weekday: Bool] = [:]
 
@@ -35,6 +35,18 @@ public final class MockAverageDataCacheManager: AverageDataCacheManager {
 	public func configureRefresh(_ shouldRefresh: Bool, for weekday: Weekday) {
 		refreshFlags[weekday] = shouldRefresh
 	}
+}
+
+struct NoopNotificationScheduler: NotificationScheduler {
+	func scheduleNotification(for event: GoalCrossingEvent) async throws {}
+}
+
+func makeTestProjectionStateManager() -> ProjectionStateCacheManager {
+	let fileName = "projection-state-\(UUID().uuidString).json"
+	return ProjectionStateCacheManager(
+		containerURLProvider: { FileManager.default.temporaryDirectory },
+		fileName: fileName
+	)
 }
 
 /// In-memory mock for TodayEnergyCacheManager that doesn't touch the filesystem

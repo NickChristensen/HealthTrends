@@ -21,6 +21,7 @@ public struct ProjectionState: Codable, Sendable {
 public final class ProjectionStateCacheManager: Sendable {
 	private let appGroupIdentifier: String
 	private let fileName: String
+	private let containerURLProvider: @Sendable () -> URL?
 	private static let logger = Logger(
 		subsystem: "com.finelycrafted.HealthTrends",
 		category: "ProjectionStateCacheManager"
@@ -34,13 +35,24 @@ public final class ProjectionStateCacheManager: Sendable {
 	) {
 		self.appGroupIdentifier = appGroupIdentifier
 		self.fileName = fileName
+		self.containerURLProvider = {
+			FileManager.default.containerURL(
+				forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+		}
+	}
+
+	init(
+		containerURLProvider: @escaping @Sendable () -> URL?,
+		fileName: String = "projection-state.json"
+	) {
+		self.appGroupIdentifier = "injected"
+		self.fileName = fileName
+		self.containerURLProvider = containerURLProvider
 	}
 
 	/// Get the file URL for storing projection state
 	private var fileURL: URL? {
-		FileManager.default
-			.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
-			.appendingPathComponent(fileName)
+		containerURLProvider()?.appendingPathComponent(fileName)
 	}
 
 	/// Read previous projection state
@@ -85,7 +97,7 @@ public final class ProjectionStateCacheManager: Sendable {
 
 // MARK: - Errors
 
-public enum ProjectionStateCacheError: Error {
+public enum ProjectionStateCacheError: Error, Equatable {
 	case containerNotFound
 	case fileNotFound
 }

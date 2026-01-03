@@ -19,7 +19,7 @@ struct StaleDataTests {
 		let mockAverageCache = MockAverageDataCacheManager()
 		let mockTodayCache = MockTodayEnergyCacheManager()
 
-		let (samples, moveGoal, currentTime, dataTime) = HealthKitFixtures.scenario3_staleData()
+		let (samples, moveGoal, currentTime, _) = HealthKitFixtures.scenario3_staleData()
 		mockQueryService.configureSamples(samples)
 		mockQueryService.configureMoveGoal(moveGoal)
 		mockQueryService.configureAuthorization(true)
@@ -28,7 +28,9 @@ struct StaleDataTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 		let config = EnergyWidgetConfigurationIntent()
 
@@ -68,7 +70,9 @@ struct StaleDataTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -103,7 +107,9 @@ struct StaleDataTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 
 		// WHEN: Generate entry
@@ -176,7 +182,9 @@ struct StaleDataTests {
 		let provider = EnergyWidgetProvider(
 			healthKitService: mockQueryService,
 			averageCacheManager: mockAverageCache,
-			todayCacheManager: mockTodayCache
+			todayCacheManager: mockTodayCache,
+			notificationScheduler: NoopNotificationScheduler(),
+			projectionStateManager: makeTestProjectionStateManager()
 		)
 		let config = EnergyWidgetConfigurationIntent()
 

@@ -18,7 +18,6 @@ enum SampleHelpers {
 		let calendar = Calendar.current
 		let startOfDay = calendar.startOfDay(for: date)
 		let currentHour = calendar.component(.hour, from: date)
-		let currentMinute = calendar.component(.minute, from: date)
 
 		var samples: [HKQuantitySample] = []
 
