@@ -186,7 +186,7 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 
 		let timeline: Timeline<EnergyWidgetEntry>
 
-		if midnight < next15MinUpdate {
+		if midnight <= next15MinUpdate {
 			// Midnight is coming up - create zero-state entry with NEW weekday's average data
 			let timeUntilMidnight = midnight.timeIntervalSince(currentDate)
 			Self.logger.info("Midnight in \(Int(timeUntilMidnight))s - scheduling zero-state entry")
@@ -665,7 +665,8 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 		let currentProjected = todayTotal + (projectedTotal - averageAtCurrentHour)
 		await detectAndNotifyGoalCrossing(
 			currentProjected: currentProjected,
-			moveGoal: moveGoal
+			moveGoal: moveGoal,
+			referenceDate: effectiveDate
 		)
 
 		// Log timestamp details for debugging
@@ -750,14 +751,23 @@ struct EnergyWidgetProvider: AppIntentTimelineProvider {
 	/// Detect goal crossing and schedule notification
 	private func detectAndNotifyGoalCrossing(
 		currentProjected: Double,
-		moveGoal: Double
+		moveGoal: Double,
+		referenceDate: Date
 	) async {
 		let detector = ProjectionGoalCrossingDetector()
 
 		// Read previous state
 		let previousProjected: Double?
 		do {
-			previousProjected = try projectionStateManager.readState().projectedTotal
+			let state = try projectionStateManager.readState()
+			let calendar = Calendar.current
+			if calendar.isDate(state.timestamp, inSameDayAs: referenceDate) {
+				previousProjected = state.projectedTotal
+			} else {
+				projectionStateManager.clearState()
+				previousProjected = nil
+				Self.logger.info("Cleared projection state from previous day")
+			}
 		} catch ProjectionStateCacheError.fileNotFound {
 			// First run - no previous state exists yet
 			previousProjected = nil
