@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"$CLAUDE_CODE_REMOTE\" ]; then curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && bd init --stealth --skip-hooks --quiet && bd prime; fi"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "axiom@axiom-marketplace": true
   }
