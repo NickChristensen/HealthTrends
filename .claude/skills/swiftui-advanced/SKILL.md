@@ -89,6 +89,10 @@ extension View {
 
 **Key insight:** GeometryReader proposes its content the full space available, then reports back a size based on its content.
 
+### Avoid GeometryReader Overuse
+
+AI code often overuses GeometryReader with fixed frames. For iOS 17+, prefer `visualEffect()` (geometry without layout impact) or `containerRelativeFrame()` (sizing relative to containers). Use GeometryReader only when these alternatives don't fit.
+
 ### Basic Pattern
 
 ```swift
