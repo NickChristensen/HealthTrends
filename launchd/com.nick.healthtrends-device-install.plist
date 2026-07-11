@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.nick.healthtrends-device-install</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/louie/code/HealthTrends/scripts/install-device-if-due.sh</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/louie/code/HealthTrends</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>3</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardOutPath</key>
+	<string>/Users/louie/Library/Logs/HealthTrends/daily-device-install.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/louie/Library/Logs/HealthTrends/daily-device-install.error.log</string>
+</dict>
+</plist>
