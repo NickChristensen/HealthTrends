@@ -15,9 +15,13 @@ Use these skills for deep-dive expertise when working on specific iOS topics:
 | `swiftui-advanced` | Custom layouts, GeometryReader techniques, animations, PreferenceKey/EnvironmentKey, performance optimization, result builders, custom view modifiers |
 | `swift-charts-advanced` | Complex charts, label collision detection, custom axis marks, @ChartContentBuilder patterns, chart performance optimization |
 
-## Issue Tracking
+## Task Tracking
 
-Use GitHub Issues for tracking work: `gh issue list`, `gh issue view <number>`, `gh issue create`.
+- Track current work in the [HealthTrends Linear project](https://linear.app/finely-crafted/project/healthtrends-28bdfb3e0de2). Use the shared **Tasks** team, whose task IDs are `TODO-N`, and the **Software** project label.
+- Read the Linear task and its acceptance criteria before starting. Keep progress, blockers, and validation results in Linear; do not create duplicate GitHub Issues for active work.
+- Keep code, branches, and pull requests on GitHub. Name task branches `todo-<number>-<short-task-title>`, using lowercase kebab case, and include the Linear task ID in PR descriptions.
+- Linear commit linking is enabled for this repository. Use `Fixes TODO-N` in a commit message or PR description only when all acceptance criteria are complete and required validation has passed. For incomplete work, use a neutral reference such as `Related to TODO-N` without a closing keyword.
+- Preserve existing GitHub issue links as historical context; Linear is the source of truth for current task status.
 
 ## Development Environment
 - **Default Simulator**: Always use iPhone 17 Pro for builds and testing
